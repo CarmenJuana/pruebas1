@@ -1,198 +1,366 @@
-﻿@page "/calendar"
-<div class="calendar-container">
-    <div class="calendar-header">
-        <button class="nav-button prev-month" @onclick="GoToPreviousMonth">&lt;</button>
-        <h2 class="current-month">@CurrentDate.ToString("MMMM yyyy")</h2>
-        <button class="nav-button next-month" @onclick="GoToNextMonth">&gt;</button>
-    </div>
-    <div class="weekdays-grid">
-        <div class="weekday">Lun</div>
-        <div class="weekday">Mar</div>
-        <div class="weekday">Mié</div>
-        <div class="weekday">Jue</div>
-        <div class="weekday">Vie</div>
-        <div class="weekday">Sáb</div>
-    </div>
-    <div class="days-grid">
-        @foreach (var day in DaysInMonth)
+﻿@page "/Calendario"
+@using System.Globalization
+@using System
+@using System.Collections.Generic
+
+
+<div class="agenda-container">
+    <header class="agenda-header">
+        <div class="header-controls">
+            <button class="btn" @onclick="PrevMonth">Mes anterior</button>
+        </div>
+        <h1>@MonthName @CurrentDate.Year</h1>
+        <div class="header-controls">
+            <button class="btn primary" @onclick="NextMonth">Mes siguiente</button>
+        </div>
+    </header>
+
+    <div class="days-grid-mensual">
+        <div class="day-name-header">Lunes</div>
+        <div class="day-name-header">Martes</div>
+        <div class="day-name-header">Miércoles</div>
+        <div class="day-name-header">Jueves</div>
+        <div class="day-name-header">Viernes</div>
+        <div class="day-name-header">Sábado</div>
+        <div class="day-name-header">Domingo</div>
+
+        @foreach (var day in Days)
         {
-            if (day.HasValue)
+            @if (day != null)
             {
-                <div class="day @(day.Value.Date == DateTime.Today.Date ? "current-day" : "")">
-                    @day.Value.Day
+                <div class="day-card @(day.Date.DayOfWeek == DayOfWeek.Sunday ? "sunday" : "")">
+                    <div class="day-header">
+                        <span class="day-name">@day.Date.ToString("dd")</span>
+                    </div>
+
+                    @if (day.Date.DayOfWeek == DayOfWeek.Sunday)
+                    {
+                        <div class="no-laboral">
+                            <span>No Laboral</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="blocks-list">
+                            @foreach (var block in day.Blocks)
+                            {
+                                <div class="list-item" style="background-color:@block.Color">
+                                    <div class="list-title">
+                                        @block.Title
+                                        <span class="task-count">
+                                            @block.SubTasks.Count()
+                                        </span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
                 </div>
             }
             else
             {
-                <div class="day empty"></div>
+                <div class="day-card empty"></div>
             }
         }
     </div>
 </div>
 
 <style>
-    :root {
-        --primary-color: #007bff;
-        --text-color: #333;
-        --border-color: #e0e0e0;
-        --bg-color-light: #f8f9fa;
-        --today-bg: #d0e7ff;
-        --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    .calendar-container {
-        font-family: var(--font-family);
-        width: 95vw;
-        height: 90vh;
-        margin: 2vh auto;
-        border: 1px solid var(--border-color);
+    /* Estilos generales */
+    .agenda-container {
+        font-family: Inter, system-ui, sans-serif;
+        background: #fff;
+        padding: 30px;
         border-radius: 12px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-        background-color: #fff;
+        width: 100vw;
+        height: 100vh;
+        max-width: 100%;
+        max-height: 100%;
+        margin: 0;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+        box-sizing: border-box;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
     }
 
-    .calendar-header {
+    /* --- Encabezado del Mes y Controles (MODIFICADO para alineación lateral) --- */
+    .agenda-header {
+        display: flex;
+        justify-content: space-between; /* Alinea ítems a los extremos */
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 0 10px; /* Pequeño padding para no pegar a los bordes */
+    }
+
+        .agenda-header h1 {
+            font-size: 32px;
+            margin: 0; /* Centrado por flexbox, no necesita margen */
+            color: #333;
+        }
+
+    /* Controles de botones (contenedor sin centrado) */
+    .header-controls {
+        display: flex;
+        gap: 15px;
+    }
+
+    /* Asegura que el contenedor de la izquierda se mantenga pequeño, envolviendo solo su botón */
+    .agenda-header > .header-controls:first-child {
+        min-width: 150px; /* Espacio para que el título no se desplace */
+        justify-content: flex-start;
+    }
+
+    /* Asegura que el contenedor de la derecha se mantenga pequeño, envolviendo solo su botón */
+    .agenda-header > .header-controls:last-child {
+        min-width: 150px; /* Espacio simétrico */
+        justify-content: flex-end;
+    }
+
+    .btn {
+        background: #E0E7FF; /* Pastel Azul Claro */
+        color: #4338CA; /* Texto Azul Oscuro */
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background-color 0.2s;
+    }
+
+        .btn:hover {
+            background: #C7D2FE;
+        }
+
+        .btn.primary {
+            background: #4338CA; /* Azul Índigo para el botón principal */
+            color: white;
+        }
+
+            .btn.primary:hover {
+                background: #3730A3;
+            }
+
+    /* --- Grid del Calendario --- */
+    .days-grid-mensual {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 10px;
+        flex-grow: 1;
+    }
+
+    .day-name-header {
+        font-weight: 700;
+        text-align: center;
+        padding: 10px 0;
+        color: #6B7280;
+        border-bottom: 2px solid #F3F4F6;
+    }
+
+    .day-card {
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        border-radius: 10px;
+        padding: 10px;
+        min-height: 150px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: box-shadow 0.2s;
+    }
+
+        .day-card:hover {
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+
+        .day-card.empty {
+            background-color: transparent;
+            border: none;
+            box-shadow: none;
+        }
+
+        .day-card.sunday {
+            background: #F9FAFB;
+            color: #9CA3AF;
+        }
+
+    .day-header {
+        display: flex;
+        justify-content: flex-start;
+        font-size: 18px;
+        font-weight: 700;
+        color: #333;
+    }
+
+    .day-card.sunday .day-name {
+        color: #9CA3AF;
+    }
+
+    /* --- Bloques de Tareas --- */
+    .blocks-list {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        list-style: none;
+        padding: 0;
+    }
+
+    .list-item {
+        border-radius: 6px;
+        padding: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        cursor: default;
+        overflow: hidden;
+        color: #333;
+        font-size: 14px;
+        line-height: 1.3;
+    }
+
+    .list-title {
+        font-weight: 600;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 2.5vh 3vw;
-        border-bottom: 1px solid var(--border-color);
     }
 
-        .calendar-header h2 {
-            font-size: 4vh;
-            font-weight: 600;
-            color: var(--primary-color);
-            margin: 0;
-        }
-
-    .nav-button {
-        background: none;
-        border: none;
-        font-size: 5vh;
-        color: var(--text-color);
-        cursor: pointer;
-        padding: 0 2vw;
-        transition: color 0.2s;
-    }
-
-        .nav-button:hover {
-            color: var(--primary-color);
-        }
-
-    .weekdays-grid {
-        display: grid;
-        grid-template-columns: repeat(6, 1fr); /* 6 columnas para Lunes a Sábado */
+    .task-count {
+        background-color: rgba(255, 255, 255, 0.5);
+        color: #333;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        min-width: 15px;
         text-align: center;
+    }
+
+    .no-laboral {
         font-weight: 600;
-        color: #777;
-        border-bottom: 1px solid var(--border-color);
+        font-size: 14px;
+        color: #EF4444;
+        text-align: center;
+        margin-top: 10px;
     }
-
-    .weekday {
-        padding: 2vh 0;
-        text-transform: uppercase;
-        font-size: 2.5vh;
-    }
-
-    .days-grid {
-        display: grid;
-        grid-template-columns: repeat(6, 1fr); /* ¡Ahora solo 6 columnas! */
-        flex-grow: 1;
-        padding: 1vw;
-    }
-
-    .day {
-        padding: 2vh 1vw;
-        border: 1px solid var(--border-color);
-        cursor: pointer;
-        transition: background-color 0.2s, transform 0.2s;
-        position: relative;
-        overflow: hidden;
-        font-size: 2.5vh;
-        font-weight: 500;
-        color: var(--text-color);
-    }
-
-        .day:hover {
-            background-color: var(--bg-color-light);
-            transform: scale(1.02);
-            z-index: 10;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-        .day.empty {
-            background-color: #f5f5f5;
-            cursor: default;
-            border: none;
-            visibility: hidden;
-        }
-
-            .day.empty:hover {
-                background-color: #f5f5f5;
-                transform: none;
-                box-shadow: none;
-            }
-
-        .day.current-day {
-            background-color: var(--today-bg);
-            font-weight: bold;
-            border: 2px solid var(--primary-color);
-            z-index: 5;
-        }
 </style>
 
 @code {
-    private DateTime CurrentDate { get; set; } = DateTime.Today;
-    private List<DateTime?> DaysInMonth { get; set; } = new();
-
-    protected override void OnInitialized()
+    class Block
     {
-        GenerateCalendarDays();
+        public string Title { get; set; }
+        public List<string> SubTasks { get; set; } = new();
+        public string Color { get; set; }
+    }
+    class DayColumn
+    {
+        public DateTime Date { get; set; }
+        public List<Block> Blocks { get; set; } = new();
     }
 
-    private void GenerateCalendarDays()
+    List<DayColumn> Days = new();
+    DateTime CurrentDate = DateTime.Today;
+
+    // Paleta de Colores Pasteles Empresariales
+    private readonly Dictionary<string, string> BlockColors = new Dictionary<string, string>
     {
-        DaysInMonth.Clear();
+        {"Tareas Administrativas", "#B5EAD7"}, // Verde Menta Pastel
+        {"Órdenes de Trabajo", "#FFDAC1"},    // Naranja Melocotón Pastel
+        {"Tareas", "#E2F0CB"},                // Verde Lima Pastel
+        {"Autoevalución", "#C7CEEA"},         // Azul Lavanda Pastel (Usamos este para reemplazar 'Servicio al Cliente' con 'Autoevaluación')
+    };
+
+    // Lista de títulos de bloques a usar
+    private readonly List<string> definedTitles = new List<string> {
+        "Tareas Administrativas",
+        "Órdenes de Trabajo",
+        "Tareas",
+        "Autoevalución"
+    };
+
+    string MonthName => CultureInfo.GetCultureInfo("es-ES").DateTimeFormat.GetMonthName(CurrentDate.Month);
+
+    protected override void OnInitialized() => BuildMonth();
+
+    void BuildMonth()
+    {
+        Days.Clear();
         var firstDayOfMonth = new DateTime(CurrentDate.Year, CurrentDate.Month, 1);
+        var firstDayOfWeek = (int)firstDayOfMonth.DayOfWeek;
+        // Ajusta el primer día para empezar en Lunes (1), no en Domingo (0)
+        var startPadding = (firstDayOfWeek == 0) ? 6 : firstDayOfWeek - 1;
+
+        for (int i = 0; i < startPadding; i++)
+        {
+            Days.Add(null);
+        }
+
         var daysInMonth = DateTime.DaysInMonth(CurrentDate.Year, CurrentDate.Month);
-
-        // Ajusta el primer día para que la semana comience en Lunes (1)
-        int offset = (int)firstDayOfMonth.DayOfWeek;
-        if (offset == 0) // Si el día de la semana es Domingo (0), el offset será 6
-        {
-            offset = 6;
-        }
-        else // Para los demás días, le restamos 1
-        {
-            offset -= 1;
-        }
-
-        // Rellena con días vacíos al principio
-        for (int i = 0; i < offset; i++)
-        {
-            DaysInMonth.Add(null);
-        }
-
-        // Rellena con los días del mes
         for (int i = 1; i <= daysInMonth; i++)
         {
-            DaysInMonth.Add(new DateTime(CurrentDate.Year, CurrentDate.Month, i));
+            var date = new DateTime(CurrentDate.Year, CurrentDate.Month, i);
+            Days.Add(CreateDay(date));
         }
     }
 
-    private void GoToPreviousMonth()
+    DayColumn CreateDay(DateTime date)
     {
-        CurrentDate = CurrentDate.AddMonths(-1);
-        GenerateCalendarDays();
+        var d = new DayColumn { Date = date };
+        if (date.DayOfWeek == DayOfWeek.Sunday)
+        {
+            return d;
+        }
+
+        var random = new Random();
+
+        // Selecciona de 1 a 4 tipos de bloques diferentes al azar
+        int blockCount = random.Next(1, definedTitles.Count + 1);
+        var selectedTitles = definedTitles.OrderBy(x => random.Next()).Take(blockCount).ToList();
+
+        foreach (var title in selectedTitles)
+        {
+            d.Blocks.Add(new Block
+            {
+                Title = title,
+                SubTasks = GetRandomSubTasks(title), // Genera las subtareas para obtener el conteo
+                Color = BlockColors[title]
+            });
+        }
+
+        return d;
     }
 
-    private void GoToNextMonth()
+    List<string> GetRandomSubTasks(string title)
     {
-        CurrentDate = CurrentDate.AddMonths(1);
-        GenerateCalendarDays();
+        var random = new Random();
+        var subtasks = new List<string>();
+
+        // Define un mínimo y máximo de tareas para que el número sea variable (2 a 7)
+        int maxTasks = random.Next(2, 8);
+
+        switch (title)
+        {
+            case "Tareas Administrativas":
+                for (int i = 1; i <= maxTasks; i++)
+                    subtasks.Add($"Revisión administrativa #{i}");
+                break;
+            case "Órdenes de Trabajo":
+                for (int i = 1; i <= maxTasks; i++)
+                    subtasks.Add($"Orden T. #{random.Next(100, 999)}");
+                break;
+            case "Tareas":
+                for (int i = 1; i <= maxTasks; i++)
+                    subtasks.Add($"Tarea de Proyecto P-{random.Next(1, 10)}");
+                break;
+            case "Autoevalución":
+                for (int i = 1; i <= maxTasks; i++)
+                    subtasks.Add($"Criterio de Autoevaluación #{i}");
+                break;
+            default:
+                for (int i = 1; i <= maxTasks; i++)
+                    subtasks.Add("Tarea Genérica");
+                break;
+        }
+        return subtasks;
     }
+
+    void PrevMonth() { CurrentDate = CurrentDate.AddMonths(-1); BuildMonth(); }
+    void NextMonth() { CurrentDate = CurrentDate.AddMonths(1); BuildMonth(); }
 }

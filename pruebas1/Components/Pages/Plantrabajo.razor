@@ -1,0 +1,516 @@
+﻿@page "/plantrabajo"
+@inject NavigationManager navigate
+@inject IJSRuntime JsRuntime
+@using System.Globalization
+
+
+
+
+<PageTitle>Programa de Trabajo</PageTitle>
+
+<style>
+    /* ------------------------------------- */
+    /* ESTILOS DE TABLA Y COLORES CORPORATIVOS */
+    /* ------------------------------------- */
+    :root {
+        --color-primario: #0B3C4A; /* Azul Oscuro/Petróleo */
+        --color-claro: #f4f7f6;
+    }
+
+    .programa-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .programa-table th, .programa-table td {
+        border: 1px solid var(--color-claro);
+        padding: 12px;
+        text-align: left;
+    }
+
+    .header-row, .info-header th {
+        background-color: var(--color-primario);
+        color: white;
+        font-weight: bold;
+    }
+    
+    .block-header {
+        background-color: #1a5e70; /* Tono más claro del primario para el bloque */
+        color: white;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background-color 0.3s;
+    }
+
+    .block-header:hover {
+        background-color: #164f5b;
+    }
+
+    /* Estilos para el despliegue/contracción de bloques */
+    .block-activities {
+        background-color: #f9f9f9;
+        /* Usamos max-height para controlar la visibilidad con una transición suave */
+        max-height: 1000px; /* Altura máxima para permitir que se muestre el contenido */
+        transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out;
+        overflow: hidden; /* Esconde el contenido que excede el max-height */
+    }
+
+    .block-activities.collapsed {
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        /* Esconder cualquier rastro visual de los bordes o contenido de la celda */
+    }
+    
+    .activity-item {
+        cursor: pointer; /* Indica que la tarea es clickeable */
+        transition: background-color 0.2s;
+    }
+
+    .activity-item:hover {
+        background-color: #eaf1f3; /* Ligero hover para tareas */
+    }
+
+    /* ------------------------------------- */
+    /* ESTILOS DE MODAL (Popup) */
+    /* ------------------------------------- */
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.6);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background-color: white;
+        padding: 30px;
+        border-radius: 10px;
+        width: 80%;
+        max-width: 900px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .close-btn {
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        color: #aaa;
+    }
+    
+    .close-btn:hover {
+        color: #333;
+    }
+    
+    .semana-header {
+        background-color: var(--color-claro);
+        padding: 8px;
+        margin-top: 15px;
+        border: 1px solid #ddd;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    .detalle-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr); /* Día, Horas, Horario */
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid #eee;
+        border-top: none;
+    }
+    
+    .detalle-grid div {
+        display: flex;
+        align-items: center;
+    }
+
+    .detalle-grid label {
+        font-weight: bold;
+        margin-right: 5px;
+    }
+</style>
+
+<h2>Programa de Trabajo Mensual</h2>
+
+<table class="programa-table">
+    <thead>
+        <tr class="info-header">
+            <th colspan="4">Información del Programa</th>
+        </tr>
+        <tr class="header-row">
+            <td>No. de Empleado</td>
+            <td>Mes</td>
+            <td colspan="2">Período (Del al)</td>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>@Encabezado.NoEmpleado</td>
+            <td>@Encabezado.Mes</td>
+            <td>@Encabezado.PeriodoDel</td>
+            <td>@Encabezado.PeriodoAl</td>
+        </tr>
+    </tbody>
+</table>
+
+<hr />
+
+<h3>Actividades por Bloque</h3>
+
+<table class="programa-table">
+    <thead>
+        <tr class="header-row">
+            <th style="width: 30%;">Bloque</th>
+            <th>Actividades / Tareas (Haga clic para detallar)</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var bloque in Bloques) 
+        {
+            <tr class="block-header" @onclick="() => ToggleBloque(bloque.NombreBloque)">
+                <td colspan="2">
+                    @(BloquesVisibilidad[bloque.NombreBloque] ? "▼" : "►") 
+                    @bloque.NombreBloque
+                </td>
+            </tr>
+
+            <tr class="@(BloquesVisibilidad[bloque.NombreBloque] ? "block-activities" : "block-activities collapsed")">
+                <td></td> 
+                <td>
+                    <ul>
+                        @{ int contador = 1; }
+                        @foreach (var actividad in bloque.Actividades) 
+                        {
+                            <li class="activity-item" @onclick="() => AbrirModal(actividad)">
+                                @contador. @actividad
+                            </li>
+                            contador++;
+                        }
+                    </ul>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (MostrarModal)
+{
+    <div class="modal-backdrop" @onclick="CerrarModal">
+        <div class="modal-content" @onclick:stopPropagation>
+            <span class="close-btn" @onclick="CerrarModal">&times;</span>
+
+            <h3>Detalle de Tarea: @TareaActual.Actividad</h3>
+            <p><strong>Mes/Año:</strong> @TareaActual.MesAnio</p>
+            <hr />
+
+            @foreach (var semana in TareaActual.Semanas)
+            {
+                <div class="semana-header" @onclick="() => ToggleSemana(semana.NombreSemana)">
+                    @(SemanasVisibilidad[semana.NombreSemana] ? "▼" : "►") 
+                    @semana.NombreSemana
+                </div>
+
+                @if (SemanasVisibilidad[semana.NombreSemana])
+                {
+                    <div style="padding: 10px;">
+                        <div class="detalle-grid" style="font-weight: bold; background-color: #f0f0f0;">
+                            <div>Día</div>
+                            <div>Horas Programadas</div>
+                            <div>Horario</div>
+                        </div>
+
+                        @foreach (var dia in semana.Dias)
+                        {
+                            <div class="detalle-grid">
+                                <div>@dia.Dia</div>
+                                <div>
+                                    <label>Horas:</label>
+                                    <input type="number" @bind="dia.HorasProgramadas" min="0" style="width: 50px;" />
+                                </div>
+                                <div>
+                                    <label>Horario:</label>
+                                    <input type="text" @bind="dia.Horario" style="width: 120px;" />
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+            
+            <div style="text-align: right; margin-top: 20px;">
+                <button @onclick="CerrarModal" style="background-color: var(--color-primario); color: white; padding: 10px 20px; border: none; border-radius: 5px;">
+                    Guardar y Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    // #######################################################
+    // ################ CLASES DE MODELO DE DATOS ############
+    // #######################################################
+    
+    // Clase para el encabezado de información personal y periodo
+    public class EncabezadoTrabajo
+    {
+        public string NoEmpleado { get; set; } // Número de empleado
+        public string Mes { get; set; }        // Mes del programa de trabajo
+        public string PeriodoDel { get; set; } // Inicio del periodo
+        public string PeriodoAl { get; set; }  // Fin del periodo
+    }
+
+    // Clase para definir cada bloque de actividades
+    public class BloqueActividades
+    {
+        public string NombreBloque { get; set; } // Nombre del bloque de actividades
+        public List<string> Actividades { get; set; } // Lista de actividades dentro del bloque
+    }
+    
+    // Clase para el detalle de un día en el modal
+    public class DetalleDia
+    {
+        public string Dia { get; set; } // Lunes, Martes, etc.
+        public int HorasProgramadas { get; set; } = 0; // Horas a registrar
+        public string Horario { get; set; } = "9:00 - 18:00"; // Ejemplo de horario
+    }
+
+    // Clase para el detalle de una semana en el modal
+    public class DetalleSemana
+    {
+        public string NombreSemana { get; set; }
+        public List<DetalleDia> Dias { get; set; }
+
+        public DetalleSemana(string nombreSemana)
+        {
+            NombreSemana = nombreSemana;
+            // Inicializar los días de la semana (Lunes a Sábado)
+            Dias = new List<DetalleDia>
+            {
+                new DetalleDia { Dia = "Lunes" },
+                new DetalleDia { Dia = "Martes" },
+                new DetalleDia { Dia = "Miércoles" },
+                new DetalleDia { Dia = "Jueves" },
+                new DetalleDia { Dia = "Viernes" },
+                new DetalleDia { Dia = "Sábado" }
+            };
+        }
+    }
+
+    // Clase para la tarea seleccionada en el modal
+    public class TareaSeleccionada
+    {
+        public string Actividad { get; set; }
+        public string MesAnio { get; set; }
+        public List<DetalleSemana> Semanas { get; set; }
+    }
+
+    // #######################################################
+    // ################ PROPIEDADES Y MÉTODOS C# #############
+    // #######################################################
+
+    // Información general del programa
+    private EncabezadoTrabajo Encabezado { get; set; } 
+    private List<BloqueActividades> Bloques { get; set; } 
+    
+    // Control de visibilidad de los bloques principales (Tabla de Actividades)
+    private Dictionary<string, bool> BloquesVisibilidad = new Dictionary<string, bool>();
+
+    // Control del Modal
+    private bool MostrarModal { get; set; } = false; // Estado para mostrar/ocultar el modal
+    private TareaSeleccionada TareaActual { get; set; } = new TareaSeleccionada(); // Objeto para la tarea en edición
+    
+    // Control de visibilidad de las semanas dentro del modal
+    private Dictionary<string, bool> SemanasVisibilidad = new Dictionary<string, bool>();
+
+    // ############ Ciclo de Vida del Componente ############
+
+    protected override void OnInitialized()
+    {
+        // 1. Carga de datos del Encabezado
+        Encabezado = new EncabezadoTrabajo
+        {
+            NoEmpleado = "12345",
+            Mes = "Octubre",
+            PeriodoDel = "01/10/2025",
+            PeriodoAl = "31/10/2025"
+        };
+        
+        // 2. Carga de datos de los Bloques de Actividades
+        Bloques = ObtenerBloques(); 
+
+        // 3. Inicialización de visibilidad de bloques: todos visibles al inicio
+        foreach (var bloque in Bloques)
+        {
+            BloquesVisibilidad.Add(bloque.NombreBloque, true); 
+        }
+    }
+    
+    // Función que carga los datos de los bloques (Actividades)
+    private List<BloqueActividades> ObtenerBloques()
+    {
+        return new List<BloqueActividades>
+        {
+            new BloqueActividades
+            {
+                NombreBloque = "Control Administrativo del SPEC",
+                Actividades = new List<string>
+                {
+                    "Me aseguré de que el área y la estación de insumos de TI esté limpia, ordenada y funcional.",
+                    "Di seguimiento en tiempo y forma al control de suscripciones de las que es responsable TI.",
+                    "Elaboré y compartí al área de Administración las solicitudes de pago del activo fijo de las que es responsable TI.",
+                    "Di seguimiento a la recepción de facturas de acuerdo con las solicitudes de pago y las entregue a Administración.",
+                    "Me cercioré de que el personal entregara en tiempo y forma sus informes, programas de trabajo y autoevaluaciones correspondientes.",
+                    "Validé que los vales de papelería relacionados con los insumos de TI se encuentren llenados correctamente; realicé el escaneo de los mismos y entregué a Servicios de oficina.",
+                    "Me aseguré de que el personal de TI llevara a cabo de manera completa el proceso de inducción al personal de nuevo ingreso (recopilación de check list del proceso).",
+                    "Generé los Movimientos múltiples (quejas, amonestaciones, sanciones) del personal de la firma que incumplió con el establecido en el Capítulo 7. Uso de computadoras, internet y correo electrónico del Reglamento Interior de Trabajo (RIT).",
+                    "Mantuve actualizado el Resumen de evaluación del personal para su evaluación del desempeño.",
+                    "Me aseguré que la Gerencia de TI llevó a cabo el proceso de evaluación y retroalimentación del desempeño del personal a su cargo.",
+                    "Me aseguré que se firmen los acuerdos de Programación Individual de Vacaciones del personal que cumple su aniversario en el mes.",
+                    "Realicé el reporte de productividad, lo revisé con la Gerencia y entregué a Dirección."
+                }
+            },
+            new BloqueActividades
+            {
+                NombreBloque = "Comunicación",
+                Actividades = new List<string>
+                {
+                    "Confirmé con el personal de TI, al menos 2 veces al día, las actividades programadas de acuerdo con su programa de trabajo.",
+                    "Efectué las llamadas que me solicitaron y mantuve actualizado el control de llamadas y asuntos pendientes del área, así como los mensajes recibidos en los medios de comunicación y me cercioré de que fueran atendidas por la persona indicada."
+                }
+            },
+            new BloqueActividades
+            {
+                NombreBloque = "Agenda",
+                Actividades = new List<string>
+                {
+                    "Mantuve actualizada la agenda (electrónica y en papel) y notifiqué de manera oportuna los recados, llamadas con el gerente y/o personal del área.",
+                    "Programé las citas inteligentemente y comunique al área y/o responsable del trabajo.",
+                    "Me aseguré de que la gerencia del área participara en las reuniones institucionales, junta de socios, juntas operativas y de mejora continua programadas.",
+                    "Acordé con las demás asistentes la entrega oportuna de información/documentación necesaria para atender la reunión/cita y entregué oportunamente.",
+                    "Programé las evaluaciones del personal con Dirección y entregué la documentación del proceso una semana antes de la reunión.",
+                    "Revisé con el personal del área los pendientes.",
+                    "Revisé con el gerente de TI los pendientes del área."
+                }
+            },
+            new BloqueActividades
+            {
+                NombreBloque = "Apoyo al Servicio",
+                Actividades = new List<string>
+                {
+                    "Validé que la información proporcionada por otras áreas (indicadores, boletines, ¿Sabías qué?, vacantes) se publicó correctamente en los medios de comunicación y que las bases de datos de los boletines se encuentren actualizadas.",
+                    "Di seguimieto a los Reportes de la RedGM (errores reportados por los usuarios).",
+                    "Participé activamente en las juntas de mejora continua.",
+                    "Realicé en tiempo y forma las tareas específicas solicitadas por la Gerencia de TI."
+                }
+            },
+            new BloqueActividades
+            {
+                NombreBloque = "Archivo",
+                Actividades = new List<string>
+                {
+                    "Mantuve al día y en estado de uso el archivo general de TI (Guarda conforme a la entrega y depura de acuerdo a instrucciones)",
+                    "Mantuve al día los Expediente de TI de acuerdo con la plantilla establecida."
+                }
+            },
+            new BloqueActividades
+            {
+                NombreBloque = "REDGM",
+                Actividades = new List<string>
+                {
+                    "Generé y di seguimiento a las órdenes de trabajo generadas por y para el área.",
+                    "Reporté mensualmente a Dirección las órdenes de trabajo pendientes y vencidas con explicación y compromisos de los responsables.",
+                    "Generé el Reporte de error al proveedor de la RedGM y me cercioré de que fuera atendido.",
+                    "Di seguimiento a los mensajes de Baja de personal.",
+                    "Generé en tiempo y forma los movimientos múltiples (permisos, vacaciones, amonestaciones, etc.) del personal de TI autorizados por la Gerencia de TI.",
+                    "Coadyuve con las demás asistentes para que las bases de datos de los clientes y proveedores estén actualizados."
+                }
+            },
+            new BloqueActividades
+            {
+                NombreBloque = "Seguimiento a la Funcionalidad de la RedGM",
+                Actividades = new List<string>
+                {
+                    "Reporté las incidencias, fallas, problemas, que a usuarios de la firma se les suscitó al usar la RedGM.",
+                    "Darle seguimiento al problema reportado en caso de que ese mismo día no quede resuelto.",
+                    "Verifiqué con el usuario que el error reportado se haya resuelto."
+                }
+            },
+            new BloqueActividades
+            {
+                NombreBloque = "Capacitación",
+                Actividades = new List<string>
+                {
+                    "Asistí a curso y participé activamente."
+                }
+            }
+        };
+    }
+
+    // ############ Lógica del Componente ############
+
+    // Función para alternar el estado de despliegue/colapso del bloque principal
+    private void ToggleBloque(string nombreBloque)
+    {
+        // Invierte el estado de visibilidad del bloque
+        BloquesVisibilidad[nombreBloque] = !BloquesVisibilidad[nombreBloque];
+    }
+
+    // Función para alternar el estado de despliegue/colapso de las semanas en el modal
+    private void ToggleSemana(string nombreSemana)
+    {
+        // Invierte el estado de visibilidad de la semana
+        SemanasVisibilidad[nombreSemana] = !SemanasVisibilidad[nombreSemana];
+    }
+    
+    // Función para abrir el modal con la tarea seleccionada
+    private void AbrirModal(string actividad)
+    {
+        // 1. Crea la estructura de datos para la tarea actual
+        TareaActual = new TareaSeleccionada
+        {
+            Actividad = actividad,
+            // Obtiene el nombre del mes y el año actual en español
+            MesAnio = DateTime.Now.ToString("MMMM yyyy", new CultureInfo("es-ES")), 
+            Semanas = new List<DetalleSemana>
+            {
+                new DetalleSemana("Semana 1"),
+                new DetalleSemana("Semana 2"),
+                new DetalleSemana("Semana 3"),
+                new DetalleSemana("Semana 4")
+            }
+        };
+
+        // 2. Inicializa la visibilidad de las semanas: todas visibles al inicio del modal
+        SemanasVisibilidad.Clear();
+        foreach (var semana in TareaActual.Semanas)
+        {
+            SemanasVisibilidad.Add(semana.NombreSemana, true);
+        }
+
+        // 3. Muestra el modal
+        MostrarModal = true;
+    }
+
+    // Función para cerrar el modal
+    private void CerrarModal()
+    {
+        // Implementar lógica de guardado de datos de horas/horario aquí.
+        MostrarModal = false;
+        TareaActual = new TareaSeleccionada(); // Limpiar el objeto de tarea
+    }
+}

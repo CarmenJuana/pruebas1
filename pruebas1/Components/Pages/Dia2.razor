@@ -1,0 +1,1280 @@
+﻿@page "/"
+@using System.Linq
+@using System.Globalization
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+@inject NavigationManager navigate
+@using Microsoft.AspNetCore.Components.Routing
+@using pruebas1.Components
+
+
+<div class="agenda-container">
+      <!-- Mover el componente CalendarSubNav dentro del contenedor principal -->
+    <CalendarSubNav />
+    <div class="top-bar-container">
+
+        <div class="fecha-header">
+            <button class="calendar-btn" @onclick="DiaAnterior">
+                <i class="bi bi-arrow-left-circle"></i>
+            </button>
+
+            <span class="fecha-texto">@FechaFormateada</span>
+
+            <button class="calendar-btn" @onclick="DiaSiguiente">
+                <i class="bi bi-arrow-right-circle"></i>
+            </button>
+
+            <button class="calendar-btn" @onclick="AbrirCalendario">📅</button>
+        </div>
+
+
+    </div>
+    <br />
+    @if (MostrarModal)
+    {
+        <div class="modal-popover">
+            <div class="calendar-header">
+                <button class="calendar-btn" @onclick="MesAnterior"><i class="bi bi-chevron-left"></i></button>
+                <strong>@MesActual.ToString("MMMM yyyy", new CultureInfo("es-ES"))</strong>
+                <button class="calendar-btn" @onclick="MesSiguiente"><i class="bi bi-chevron-right"></i></button>
+            </div>
+
+            <div class="calendar-grid">
+                @foreach (var dia in DiasSemana)
+                {
+                    <div class="calendar-week-day"><strong>@dia</strong></div>
+                }
+
+                @foreach (var day in DiasDelCalendario)
+                {
+                    <div class="calendar-day @(day.Month != MesActual.Month ? "calendar-other-month" : "") @(day.Date == DateTime.Now.Date ? "calendar-today" : "")"
+                         @onclick="() => SeleccionarFecha(day)">
+                        @day.Day
+                    </div>
+                }
+            </div>
+            <div style="margin-top:10px; text-align:center;">
+                <button class="calendar-btn" @onclick="CerrarCalendario">✖ Cerrar</button>
+            </div>
+        </div>
+    }
+
+    @if (FechaSeleccionada.DayOfWeek == DayOfWeek.Sunday)
+    {
+        <div class="col-12 text-center">
+            <div class="alert alert-warning shadow-sm">
+                Día no laboral – @FechaSeleccionada.ToString("dddd, dd MMMM yyyy", new CultureInfo("es-ES"))
+            </div>
+        </div>
+    }
+    else if (!Categories.Any()) // Se activa por la simulación de CargarTareasPorFecha
+    {
+        <div class="col-12 text-center">
+            <div class="alert alert-info shadow-sm">
+                No hubo actividades o tareas asignadas para @FechaSeleccionada.ToString("dddd, dd MMMM yyyy", new CultureInfo("es-ES"))
+            </div>
+        </div>
+    }
+    else
+    {
+        @foreach (var cat in Categories)
+        {
+            <div class="card block-card @cat.ColorClass">
+                <div class="card-header block-header" @onclick="() => Toggle(cat)">
+                    <div class="header-left">
+                        <button class="toggle-btn" aria-label="expand/collapse">@((cat.IsOpen) ? "▾" : "▸")</button>
+                        <h3 class="block-title">@cat.Name</h3>
+                    </div>
+                    <div class="header-right">
+                        @if (AllCompleted(cat))
+                        {
+                            <span class="badge completado">Completado ✓</span>
+                        }
+                        else
+                        {
+                            <span class="badge pendiente">@RemainingCount(cat) pendiente(s)</span>
+                        }
+                    </div>
+                </div>
+
+                @if (cat.IsOpen)
+                {
+                    <div class="card-body block-body">
+                        <ul class="subtask-list">
+                            @foreach (var st in cat.Subtasks)
+                            {
+                                <li class="subtask-item">
+                                    <input type="checkbox" id="@st.Id" checked="@st.IsDone" @onchange="(e) => ToggleSubtask(cat, st)" />
+                                    <label for="@st.Id" class="subtask-label @(st.IsDone ? "done" : "")">
+                                        <span class="subtask-text" @onclick="() => ToggleTable(st, cat.Name)">@st.Title</span>
+                                        @if (st.IsDone)
+                                        {
+                                            <small class="done-text">Hecho</small>
+                                        }
+                                    </label>
+
+                                    @if ((cat.Name == "Órdenes de Trabajo" || cat.Name == "Tareas Administrativas") && st.ShowTable)
+                                    {
+                                        <div class="table-wrapper">
+                                            <table class="subtask-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Subtarea</th>
+                                                        <th>Objetivo</th>
+                                                        <th>Hecho</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var s2 in st.Subtasks)
+                                                    {
+                                                        <tr>
+                                                            <td>@s2.Title</td>
+                                                            <td>Objetivo de @s2.Title</td>
+                                                            <td>
+                                                                <input type="checkbox" id="@s2.Id" checked="@s2.IsDone" @onchange="(e) => ToggleInnerSubtask(cat, st, s2)" />
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                </li>
+                            }
+                        </ul>
+
+                        <div class="actions">
+                            <button class="btn small" @onclick="() => MarkAll(cat, true)">Marcar todo</button>
+                            <button class="btn small outline" @onclick="() => MarkAll(cat, false)">Desmarcar todo</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+    @if (ShowModal)
+    {
+        <div class="modal-overlay">
+            <div class="modal">
+                <h3>Agregar Nueva Tarea</h3>
+                <input placeholder="Título de la tarea" @bind="NewTaskTitle" />
+                <div class="modal-actions">
+                    <button class="btn small" @onclick="SaveTask">Guardar</button>
+                    <button class="btn small outline" @onclick="CloseModal">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    /* VARIABLES DE COLOR - PALETA MÁS MODERNA */
+    :root {
+        --primary-color: #5b5b9e; /* Un tono de morado/azul más profundo y moderno */
+        --primary-dark-color: #4a4a81;
+        --secondary-color: #6c757d;
+        --success-color: #28a745;
+        --danger-color: #dc3545;
+        --background-color: #f4f7f6; /* Fondo más suave */
+        --text-color: #343a40; /* Texto oscuro */
+        --border-color: #ced4da;
+        --input-bg-color: #fff;
+        --sidebar-bg: #e9ecef; /* Fondo claro para el selector */
+    }
+
+    /* ---------------- MODAL BASE ---------------- */
+    .modal-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.6);
+        display: flex;
+        justify-content: center;
+        align-items: center; /* Centrado vertical en lugar de alineado arriba */
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+    }
+
+        .modal-container.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+    .modal-content {
+        background-color: var(--input-bg-color);
+        border-radius: 12px; /* Esquinas más suaves */
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        width: 90%;
+        max-width: 1000px; /* Ancho grande y definido */
+        height: 90vh; /* Mayor altura */
+        max-height: 800px;
+        transform: scale(0.95);
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Rebote suave */
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .modal-container.visible .modal-content {
+        transform: scale(1);
+    }
+
+    /* ---------------- CABECERA ---------------- */
+    .modal-header {
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title {
+        font-size: 1.75rem;
+        color: var(--primary-color);
+        margin: 0;
+    }
+
+    .close-button {
+        font-size: 2.5rem;
+        color: var(--secondary-color);
+        position: static;
+        transform: none;
+        cursor: pointer;
+        line-height: 1;
+    }
+
+        .close-button:hover {
+            color: var(--danger-color);
+        }
+
+    /* ---------------- CUERPO PRINCIPAL - DIVIDIDO ---------------- */
+    .modal-body-wrapper {
+        flex-grow: 1;
+        display: flex;
+        overflow: hidden;
+        background-color: var(--background-color);
+    }
+
+    /* Selector Lateral de Tipo (Sidebar) */
+    .form-type-selector {
+        flex-shrink: 0; /* No se encoge */
+        width: 220px; /* Un poco más ancho */
+        padding: 1.5rem;
+        background-color: var(--sidebar-bg);
+        border-right: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+        .form-type-selector button {
+            padding: 0.8rem 1rem;
+            border: none;
+            background-color: transparent;
+            color: var(--text-color);
+            font-weight: 500;
+            border-radius: 6px;
+            text-align: left;
+            transition: background-color 0.2s, color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+        }
+
+            .form-type-selector button:hover {
+                background-color: #dee2e6;
+            }
+
+            .form-type-selector button.active {
+                background-color: var(--primary-color);
+                color: #fff;
+                font-weight: bold;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            }
+
+        .form-type-selector .icon {
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+    /* Contenido Principal (Scrollable) */
+    .form-section-wrapper {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem 2rem;
+    }
+
+    /* GRID DEL FORMULARIO */
+    .form-section {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr); /* Dos columnas fijas para desktop */
+        gap: 1.5rem 2rem;
+    }
+
+    .form-group-span-2 {
+        grid-column: 1 / -1; /* Ocupa las dos columnas */
+    }
+
+    .section-label {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: var(--primary-dark-color);
+        margin-bottom: 0.75rem !important;
+        border-bottom: 1px dashed var(--border-color);
+        padding-bottom: 0.5rem;
+        display: block;
+    }
+
+    /* Controles y Etiquetas */
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+        color: var(--text-color);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        box-sizing: border-box;
+        font-size: 1rem;
+        background-color: var(--input-bg-color);
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(91, 91, 158, 0.25);
+        }
+
+    .tall-textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    .mt-2 {
+        margin-top: 0.5rem;
+    }
+
+    /* Agrupación en línea (Fecha/Hora) */
+    .form-group-inline {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: flex-end;
+    }
+
+    .inline-control-group {
+        flex: 1 1 20%;
+        min-width: 120px;
+    }
+
+    .form-group-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-basis: auto; /* Para que no fuerce un ancho grande */
+        min-width: unset;
+        justify-content: flex-start;
+    }
+
+        .form-group-checkbox label {
+            margin-bottom: 0;
+            order: 2;
+        }
+
+        .form-group-checkbox input[type="checkbox"] {
+            order: 1;
+            width: 1.2rem;
+            height: 1.2rem;
+            margin: 0;
+        }
+
+    /* Botones */
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background-color 0.2s, transform 0.1s;
+        font-size: 0.95rem;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-color);
+        color: #fff;
+    }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark-color);
+        }
+
+    .btn-success {
+        background-color: var(--success-color);
+        color: #fff;
+    }
+
+    .btn-secondary {
+        background-color: var(--secondary-color);
+        color: #fff;
+    }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+    /* Deshabilitado (Disabled) */
+    .disabled-group label {
+        color: #999;
+    }
+
+    .disabled-group input, .disabled-group select, .disabled-group textarea, .disabled-group .input-group button {
+        background-color: #e9ecef !important;
+        border-color: #dee2e6 !important;
+        color: #999 !important;
+        cursor: not-allowed !important;
+    }
+
+    /* Sub tareas */
+    .input-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .todo-list {
+        list-style-type: none;
+        padding: 0;
+        margin-top: 1rem;
+    }
+
+        .todo-list li {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.4rem;
+            padding: 0.6rem 1rem;
+            background-color: var(--input-bg-color);
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+        }
+
+        .todo-list input[type="checkbox"] {
+            width: 1.1rem;
+            height: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .todo-list span {
+            flex: 1;
+            font-size: 0.95rem;
+        }
+
+    .delete-button {
+        background: none;
+        border: none;
+        color: #888;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+
+        .delete-button:hover {
+            color: var(--danger-color);
+        }
+
+    /* ---------------- FOOTER DEL MODAL ---------------- */
+    .modal-footer {
+        padding: 1rem 2rem;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        flex-shrink: 0;
+    }
+
+    /* ---------------- ALERTAS (Overlay) ---------------- */
+    .alert-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.4);
+        z-index: 1999;
+    }
+
+    .alert-container {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: var(--input-bg-color);
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        z-index: 2000;
+        text-align: center;
+        min-width: 350px;
+    }
+
+        .alert-container h4 {
+            color: var(--primary-color);
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+    .alert-buttons {
+        margin-top: 1.5rem;
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+    }
+
+    .btn-danger {
+        background-color: var(--danger-color);
+        color: #fff;
+    }
+
+    /* ---------------- MEDIA QUERIES (Responsive) ---------------- */
+    @@media (max-width: 992px) {
+        .modal-content {
+            max-width: 700px;
+            height: 95vh;
+            max-height: 95vh;
+        }
+
+        .modal-body-wrapper {
+            flex-direction: column;
+        }
+        /* En móvil/tablet, el selector se convierte en una fila horizontal */
+        .form-type-selector {
+            width: 100%;
+            flex-direction: row;
+            border-right: none;
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 1.5rem;
+            overflow-x: auto;
+            white-space: nowrap;
+            gap: 0.5rem;
+        }
+
+            .form-type-selector button {
+                flex-shrink: 0;
+                padding: 0.6rem 0.8rem;
+            }
+
+        .form-section-wrapper {
+            padding: 1.5rem;
+        }
+        /* En móvil, el grid se colapsa a una sola columna */
+        .form-section {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        .form-group-span-2 {
+            grid-column: auto; /* Deshace el span de 2 columnas */
+        }
+
+        .form-group-inline {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .inline-control-group {
+            min-width: 100%;
+        }
+    }
+    /* ------------------------------------------- */
+    /* ESTILOS ORIGINALES DE CATEGORÍAS */
+    /* ------------------------------------------- */
+
+    .agenda-container {
+        max-width: 900px;
+        margin: 18px auto;
+        font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+        gap: 14px;
+        display: flex;
+        flex-direction: column;
+        padding: 8px;
+    }
+
+    .block-card {
+        border-radius: 12px;
+        box-shadow: 0 6px 14px rgba(20,20,30,0.06);
+        overflow: hidden;
+        border: 1px solid rgba(0,0,0,0.06);
+    }
+
+    .block-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        cursor: pointer;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .toggle-btn {
+        background: transparent;
+        border: none;
+        font-size: 18px;
+        width: 30px;
+        text-align: center;
+    }
+
+    .block-title {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 600;
+    }
+
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .card-body {
+        padding: 12px 18px 16px 18px;
+        background: rgba(255,255,255,0.7);
+    }
+
+    .subtask-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .subtask-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .subtask-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .subtask-label.done .subtask-text {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+    .done-text {
+        font-size: 0.8rem;
+        color: rgba(0,0,0,0.45);
+        margin-left: 8px;
+    }
+
+    .table-wrapper {
+        margin-left: 36px;
+        margin-top: 6px;
+    }
+
+    .subtask-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+        .subtask-table th, .subtask-table td {
+            border: 1px solid rgba(0,0,0,0.1);
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        .subtask-table th {
+            background: rgba(0,0,0,0.05);
+        }
+
+    .actions {
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+    }
+
+    .btn {
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        background: rgba(0,0,0,0.06);
+    }
+
+        .btn.small {
+            font-size: 0.9rem;
+            padding: 6px 10px;
+        }
+
+        .btn.outline {
+            background: transparent;
+            border: 1px solid rgba(0,0,0,0.08);
+        }
+
+    .badge {
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+
+    .completado {
+        background: rgba(34,197,94,0.12);
+        color: #166534;
+        border: 1px solid rgba(34,197,94,0.18);
+    }
+
+    .pendiente {
+        background: rgba(250,204,21,0.1);
+        color: #92400e;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    /* Nuevos colores pastel más ejecutivos */
+    .pastel-blue .block-header {
+        background: linear-gradient(90deg, #e6f0fa, #f7fbfe);
+    }
+
+    .pastel-green .block-header {
+        background: linear-gradient(90deg, #eaf8f1, #f8fefb);
+    }
+
+    .pastel-mauve .block-header {
+        background: linear-gradient(90deg, #f3edf7, #fbf8fd);
+    }
+
+    .pastel-beige .block-header {
+        background: linear-gradient(90deg, #f9f6f2, #fefdfb);
+    }
+
+    .pastel-teal .block-header {
+        background: linear-gradient(90deg, #e9f9f7, #f7fdfd);
+    }
+
+    /* Modal de tareas (no de calendario) */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1001; /* Asegura que esté por encima de todo */
+    }
+
+    .modal {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        width: 320px;
+        box-shadow: 0 6px 14px rgba(0,0,0,0.2);
+    }
+
+        .modal input {
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+    .modal-actions {
+        margin-top: 14px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    /* ------------------------------------------- */
+    /* ESTILOS AÑADIDOS/MODIFICADOS PARA FECHA Y CALENDARIO */
+    /* ------------------------------------------- */
+
+    /* Contenedor principal que alinea fecha al centro y botón a la derecha */
+    .top-bar-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .fecha-header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        flex-grow: 1;
+        /* 👈 AÑADE ESTO: Permite posicionar el popover relativo a este div */
+        position: relative;
+    }
+
+    /* Botón de Añadir (FAB) - MODIFICADO */
+    .add-task-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #3b82f6;
+        color: white;
+        font-size: 20px;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        flex-shrink: 0;
+    }
+
+    .calendar-btn {
+        background: none;
+        border: none;
+        font-size: 1.25rem;
+        cursor: pointer;
+    }
+
+    .fecha-texto {
+        font-size: 1.2rem;
+        font-weight: 600;
+        min-width: 180px;
+        text-align: center;
+    }
+
+    /* CALENDARIO - HECHO MÁS PEQUEÑO Y RESPONSIVE */
+    .modal-popover {
+        position: absolute; /* CLAVE */
+        z-index: 1000;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        /* --- CAMBIOS CLAVE: TAMAÑO Y POSICIÓN --- */
+        width: 250px; /* Reducido para verse compacto */
+        max-width: none; /* Ignora el max-width anterior */
+        /* POSICIONAMIENTO RELATIVO AL .fecha-header */
+        top: 40px; /* Mueve el modal justo debajo del icono */
+        right: 0; /* Lo ancla a la derecha de .fecha-header */
+        left: auto; /* Deshace cualquier alineación a la izquierda */
+        transform: none; /* Deshace la centrado horizontal */
+        /* ------------------------------------------ */
+    }
+
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 0.9em;
+    }
+
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 3px;
+        text-align: center;
+        font-size: 0.9em;
+    }
+
+    .calendar-week-day {
+        padding: 4px 2px;
+    }
+
+    .calendar-day {
+        padding: 5px 3px; /* Reducido */
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+
+        .calendar-day:hover {
+            background-color: #f0f0f0;
+        }
+
+    .calendar-other-month {
+        opacity: 0.5;
+    }
+
+    .calendar-today {
+        font-weight: bold;
+        background-color: #d1e7ff;
+        color: #0d6efd;
+    }
+</style>
+
+@code {
+    public bool ShowModal { get; set; } = false;
+    public enum FormTypes { Evento, Tarea, Administrativa }
+    public FormTypes FormType { get; set; } = FormTypes.Administrativa;
+
+    public bool showAlert { get; set; } = false;
+    public string alertTitle { get; set; } = "";
+    public string alertMessage { get; set; } = "";
+    public string alertType { get; set; } = "";
+
+    public bool showOtherLocationInput { get; set; } = false;
+    public bool showOtherTaskNameInput { get; set; } = false;
+
+    private string newSubtask = string.Empty;
+    private List<string> subtasks = new List<string>();
+
+
+    public void OpenModal()
+    {
+        ShowModal = true;
+    }
+
+    public void CloseModal()
+    {
+        
+    }
+
+    public void CheckClose()
+    {
+        alertTitle = "Confirmar";
+        alertMessage = "¿Seguro que quieres cerrar sin guardar?";
+        alertType = "confirm";
+        showAlert = true;
+    }
+
+    public void ConfirmClose()
+    {
+        CloseModal();
+        CancelAlert();
+    }
+
+ 
+    public void CheckSave()
+    {
+        alertTitle = "Guardado Exitoso";
+        alertMessage = $"El {FormType.ToString().ToLower()} se guardó exitosamente.";
+        alertType = "info";
+        showAlert = true;
+    }
+
+    public void ConfirmSaveAndClose()
+    {
+        CloseModal();
+        CancelAlert();
+    }
+
+    public void CancelAlert()
+    {
+        showAlert = false;
+    }
+
+    public void ir()
+    {
+        navigate.NavigateTo("/calendar");
+        CloseModal();
+    }
+
+    private void SetFormType(FormTypes type)
+    {
+        FormType = type;
+        showOtherLocationInput = false;
+        showOtherTaskNameInput = false;
+        // Limpiar subtasks al cambiar de tipo para simular formulario nuevo
+        if (type != FormTypes.Tarea)
+        {
+            subtasks.Clear();
+        }
+        StateHasChanged();
+    }
+
+    private void HandleLocationChange(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            showOtherLocationInput = e.Value.ToString() == "otra";
+        }
+    }
+
+    private void HandleTaskNameChange(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            showOtherTaskNameInput = e.Value.ToString() == "otra";
+        }
+    }
+
+    private void AddSubtask()
+    {
+        if (!string.IsNullOrWhiteSpace(newSubtask))
+        {
+            subtasks.Add(newSubtask.Trim());
+            newSubtask = string.Empty;
+        }
+    }
+
+    private void AddSubtaskOnEnter(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            AddSubtask();
+        }
+    }
+
+    private void RemoveSubtask(string taskToRemove)
+    {
+        subtasks.Remove(taskToRemove);
+    }
+    class SubtaskModel
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Title { get; set; }
+        public bool IsDone { get; set; }
+        public List<SubtaskModel> Subtasks { get; set; } = new();
+        public bool ShowTable { get; set; } = false;
+    }
+
+    class CategoryModel
+    {
+        public string Name { get; set; }
+        public List<SubtaskModel> Subtasks { get; set; } = new();
+        public bool IsOpen { get; set; } = true;
+        public string ColorClass { get; set; } = "pastel-blue";
+    }
+
+    // Usamos una lista temporal para guardar la lista maestra de tareas
+    private List<CategoryModel> MasterCategories = new();
+    List<CategoryModel> Categories { get; set; } = new();
+
+    string NewTaskTitle = string.Empty;
+
+    private DateTime FechaSeleccionada { get; set; } = DateTime.Now.Date;
+    private DateTime MesActual { get; set; } = DateTime.Now.Date;
+    private bool MostrarModal { get; set; } = false;
+
+    private string FechaFormateada => FechaSeleccionada.ToString("dddd, dd MMMM yyyy", new CultureInfo("es-ES"));
+    private string[] DiasSemana = { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" };
+    private IEnumerable<DateTime> DiasDelCalendario { get; set; } = Enumerable.Empty<DateTime>();
+
+    protected override void OnInitialized()
+    {
+        InitializeMasterCategories();
+        CargarTareasPorFecha();
+        GenerarDiasCalendario();
+    }
+
+    // Método para definir la lista completa de categorías/tareas
+    private void InitializeMasterCategories()
+    {
+        MasterCategories = new List<CategoryModel>
+        {
+            new CategoryModel { Name = "Tareas Administrativas", ColorClass = "#E5E4CF", Subtasks = new List<SubtaskModel>
+                {
+                    new SubtaskModel{ Title = "Revisar facturas", Subtasks = new List<SubtaskModel>{ new SubtaskModel{ Title="Detalle 1"}, new SubtaskModel{ Title="Detalle 2" } } },
+                    new SubtaskModel{ Title = "Archivar documentos" },
+                }
+            },
+            new CategoryModel { Name = "Órdenes de Trabajo", ColorClass = "pastel-green", Subtasks = new List<SubtaskModel>
+                {
+                    new SubtaskModel{ Title = "Asignar técnico", Subtasks = new List<SubtaskModel>{ new SubtaskModel{ Title="Técnico A"}, new SubtaskModel{ Title="Técnico B" } } },
+                }
+            },
+            new CategoryModel { Name = "Tareas", ColorClass = "pastel-mauve", Subtasks = new List<SubtaskModel>
+                {
+                    new SubtaskModel{ Title = "Planificar semana" },
+                    new SubtaskModel{ Title = "Reunión equipo" },
+                }
+            },
+        };
+    }
+
+    // Lógica para simular días sin trabajo o actividades
+    private void CargarTareasPorFecha()
+    {
+        // 1. Simulación: Si es sábado o el día 15 del mes, simular "No hubo actividades"
+        if (FechaSeleccionada.DayOfWeek == DayOfWeek.Saturday || FechaSeleccionada.Day == 15)
+        {
+            Categories = new List<CategoryModel>();
+        }
+        // 2. Si es un día normal, cargar todas las tareas
+        else
+        {
+            // Clonamos la lista maestra para que las marcas de "done" sean específicas de la vista
+            Categories = MasterCategories.Select(c => new CategoryModel
+            {
+                Name = c.Name,
+                ColorClass = c.ColorClass,
+                IsOpen = c.IsOpen,
+                Subtasks = c.Subtasks.Select(st => new SubtaskModel
+                {
+                    Id = Guid.NewGuid().ToString(), // IDs deben ser únicos
+                    Title = st.Title,
+                    IsDone = st.IsDone,
+                    ShowTable = st.ShowTable,
+                    Subtasks = st.Subtasks.ToList()
+                }).ToList()
+            }).ToList();
+        }
+    }
+
+
+    // MÉTODOS DE NAVEGACIÓN CON SALTO DE DOMINGO
+    private void DiaAnterior()
+    {
+        FechaSeleccionada = FechaSeleccionada.AddDays(-1);
+        // Si al mover la fecha es domingo, salta un día más.
+        if (FechaSeleccionada.DayOfWeek == DayOfWeek.Sunday)
+        {
+            FechaSeleccionada = FechaSeleccionada.AddDays(-1);
+        }
+        MesActual = FechaSeleccionada;
+        GenerarDiasCalendario();
+        CargarTareasPorFecha(); // Actualiza la simulación de tareas
+    }
+
+    private void DiaSiguiente()
+    {
+        FechaSeleccionada = FechaSeleccionada.AddDays(1);
+        // Si al mover la fecha es domingo, salta un día más.
+        if (FechaSeleccionada.DayOfWeek == DayOfWeek.Sunday)
+        {
+            FechaSeleccionada = FechaSeleccionada.AddDays(1);
+        }
+        MesActual = FechaSeleccionada;
+        GenerarDiasCalendario();
+        CargarTareasPorFecha(); // Actualiza la simulación de tareas
+    }
+
+    // MÉTODOS DEL CALENDARIO
+    private void AbrirCalendario()
+    {
+        MesActual = FechaSeleccionada;
+        GenerarDiasCalendario();
+        MostrarModal = true;
+    }
+
+    private void CerrarCalendario() => MostrarModal = false;
+
+    private void MesAnterior()
+    {
+        MesActual = MesActual.AddMonths(-1);
+        GenerarDiasCalendario();
+    }
+
+    private void MesSiguiente()
+    {
+        MesActual = MesActual.AddMonths(1);
+        GenerarDiasCalendario();
+    }
+
+    private void SeleccionarFecha(DateTime nuevaFecha)
+    {
+        FechaSeleccionada = nuevaFecha.Date;
+        CerrarCalendario();
+        CargarTareasPorFecha(); // Actualiza la simulación de tareas al seleccionar una fecha
+    }
+
+    private void GenerarDiasCalendario()
+    {
+        var primerDiaDelMes = new DateTime(MesActual.Year, MesActual.Month, 1);
+
+        // Ajuste para que la semana empiece en Lunes (DayOfWeek.Monday)
+        var offset = (int)primerDiaDelMes.DayOfWeek - (int)DayOfWeek.Monday;
+        if (offset < 0) offset += 7;
+
+        var diaInicio = primerDiaDelMes.AddDays(-offset);
+        var dias = new List<DateTime>();
+
+        for (int i = 0; i < 42; i++)
+        {
+            dias.Add(diaInicio.AddDays(i));
+        }
+
+        DiasDelCalendario = dias;
+    }
+
+    // ... (El resto de tus métodos de manipulación de tareas)
+    void Toggle(CategoryModel cat) => cat.IsOpen = !cat.IsOpen;
+    void ToggleSubtask(CategoryModel cat, SubtaskModel st) => st.IsDone = !st.IsDone;
+
+    void ToggleInnerSubtask(CategoryModel cat, SubtaskModel parent, SubtaskModel inner)
+    {
+        inner.IsDone = !inner.IsDone;
+        parent.IsDone = parent.Subtasks.All(x => x.IsDone);
+    }
+
+    void ToggleTable(SubtaskModel st, string categoryName)
+    {
+        if (categoryName == "Órdenes de Trabajo" || categoryName == "Tareas Administrativas")
+            st.ShowTable = !st.ShowTable;
+    }
+
+    bool AllCompleted(CategoryModel cat)
+    {
+        return cat.Subtasks != null && cat.Subtasks.All(st => st.IsDone && (st.Subtasks == null || st.Subtasks.All(s2 => s2.IsDone)));
+    }
+
+    int RemainingCount(CategoryModel cat)
+    {
+        int total = 0;
+        foreach (var st in cat.Subtasks)
+        {
+            if (!st.IsDone) total++;
+            if (st.Subtasks != null) total += st.Subtasks.Count(s => !s.IsDone);
+        }
+        return total;
+    }
+
+    void MarkAll(CategoryModel cat, bool done)
+    {
+        foreach (var st in cat.Subtasks)
+        {
+            st.IsDone = done;
+            if (st.Subtasks != null)
+                foreach (var s2 in st.Subtasks) s2.IsDone = done;
+        }
+    }
+
+
+
+    void SaveTask()
+    {
+        if (!string.IsNullOrWhiteSpace(NewTaskTitle))
+        {
+            // Añadir tarea a la primera categoría (o la que corresponda a la fecha)
+            if (Categories.Any())
+            {
+                Categories.First().Subtasks.Add(new SubtaskModel { Title = NewTaskTitle });
+            }
+            else
+            {
+                // Si no hay categorías (simulación de día sin tareas), inicializa la lista para añadirla
+                Categories = MasterCategories.Select(c => new CategoryModel
+                {
+                    Name = c.Name,
+                    ColorClass = c.ColorClass,
+                    Subtasks = new List<SubtaskModel>()
+                }).ToList();
+                Categories.First().Subtasks.Add(new SubtaskModel { Title = NewTaskTitle });
+            }
+
+            NewTaskTitle = string.Empty;
+            ShowModal = false;
+        }
+    }
+}
