@@ -1,0 +1,414 @@
+﻿@page "/autoevaluacion"
+
+<br />
+
+<h2 class="title">📋 Autoevaluación</h2>
+
+<div class="evaluation-container">
+    @foreach (var bloque in Bloques)
+    {
+        <div class="block">
+            <h3 class="block-title">@bloque.Nombre</h3>
+            <table class="activities-table">
+                <thead>
+                    <tr>
+                        <th>Actividad</th>
+                        <th>Periodicidad</th>
+                        <th>Programado</th>
+                        <th>Realizado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tarea in bloque.Tareas)
+                    {
+                        <tr>
+                            <td>@tarea.Nombre</td>
+                            <td>
+                                <span class="badge @tarea.Periodicidad.ToLower()">@tarea.Periodicidad</span>
+                            </td>
+                            <td class="check-cell">
+                                @tarea.RegistradoProgramado
+                            </td>
+                            <td class="check-cell">
+                                <input type="checkbox" checked="@tarea.Realizado"
+                                       @onchange="(e) => OnCheckChanged(tarea, e.Value is bool b && b)" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (ShowModal)
+{
+    <div class="overlay" @onclick="CloseModal">
+        <div class="modal small" @onclick:stopPropagation="true">
+            <h3 class="modal-title">@ModalTitle</h3>
+
+            <div class="modal-body">
+                @if (IsWeekly)
+                {
+                    <label>Selecciona el día de la semana:</label>
+                    <div class="weekdays small">
+                        @for (int i = 0; i < WeekDays.Length; i++)
+                        {
+                            <label class="day-option small">
+                                <input type="radio"
+                                       name="weekday"
+                                       value="@i"
+                                       checked="@(SelectedWeekIndex == i)"
+                                       @onchange="() => SelectWeekDay(i)" />
+                                <span>@WeekDays[i]</span>
+                            </label>
+                        }
+                    </div>
+                }
+                else if (IsMonthly)
+                {
+                    <label>Selecciona la fecha:</label>
+                    <input type="date" @bind="SelectedDate" class="input-date small" />
+                }
+                else if (IsAnnual)
+                {
+                    <label>Selecciona el mes y año:</label>
+                    <input type="month" @bind="SelectedDate" class="input-date small" />
+                }
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-save" @onclick="SaveModal">Guardar</button>
+                <button class="btn-cancel" @onclick="CloseModal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // ✅ Clases del modelo
+    public class Tarea
+    {
+        public string Nombre { get; set; }
+        public string Periodicidad { get; set; }
+        public bool Realizado { get; set; }
+        public string RegistradoProgramado { get; set; } = "";
+    }
+
+    public class Bloque
+    {
+        public string Nombre { get; set; }
+        public List<Tarea> Tareas { get; set; } = new();
+    }
+
+    // ✅ Variables principales
+    public List<Bloque> Bloques { get; set; } = new();
+
+    public bool ShowModal { get; set; }
+    public bool IsWeekly { get; set; }
+    public bool IsMonthly { get; set; }
+    public bool IsAnnual { get; set; }
+    public string ModalTitle { get; set; } = string.Empty;
+
+    // ✅ Lunes a sábado
+    public string[] WeekDays = new[] { "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado" };
+
+    public int SelectedWeekIndex { get; set; } = -1;
+    public DateTime SelectedDate { get; set; } = DateTime.Today;
+    private Tarea? CurrentTask;
+    private void SelectWeekDay(int index)
+    {
+        SelectedWeekIndex = index;
+    }
+    // ✅ Datos iniciales
+    protected override void OnInitialized()
+    {
+        Bloques = new List<Bloque>
+        {
+            new Bloque
+            {
+                Nombre = "CONTROL ADMINISTRATIVO DEL SPEC",
+                Tareas = new List<Tarea>
+                {
+                    new() { Nombre = "Me aseguré de que el área y la estación de insumos de TI esté limpia, ordenada y funcional.", Periodicidad = "Diario" },
+                    new() { Nombre = "Di seguimiento en tiempo y forma al control de suscripciones de las que es responsable TI.", Periodicidad = "Semanal" },
+                    new() { Nombre = "Elaboré y compartí al área de Administración las solicitudes de pago del activo fijo de las que es responsable TI.", Periodicidad = "Mensual" },
+                    new() { Nombre = "Di seguimiento a los reportes de pago.", Periodicidad = "Mensual" },
+                    new() { Nombre = "Me cercioré de que el personal entregara informes y autoevaluaciones.", Periodicidad = "Semanal" }
+                }
+            },
+            new Bloque
+            {
+                Nombre = "COMUNICACIÓN",
+                Tareas = new List<Tarea>
+                {
+                    new() { Nombre = "Confirmé con el personal de TI las actividades programadas.", Periodicidad = "Diario" },
+                    new() { Nombre = "Efectué llamadas y mantuve actualizado el control de asuntos pendientes.", Periodicidad = "Diario" }
+                }
+            },
+            new Bloque
+            {
+                Nombre = "AGENDA",
+                Tareas = new List<Tarea>
+                {
+                    new() { Nombre = "Mantuve actualizada la agenda y notifiqué recados.", Periodicidad = "Diario" },
+                    new() { Nombre = "Programé citas inteligentemente y comuniqué al responsable.", Periodicidad = "Diario" },
+                    new() { Nombre = "Revisé con el personal los pendientes.", Periodicidad = "Semanal" },
+                    new() { Nombre = "Coordiné con recursos humanos la retroalimentación psicométrica.", Periodicidad = "Anual" }
+                }
+            }
+        };
+    }
+
+    // ✅ Cuando se marca una tarea como realizada
+    private void OnCheckChanged(Tarea tarea, bool value)
+    {
+        CurrentTask = tarea;
+        if (tarea.Periodicidad == "Semanal")
+        {
+            IsWeekly = true; IsMonthly = false; IsAnnual = false;
+            ModalTitle = tarea.Nombre;
+
+            // Si ya tenía un día asignado, seleccionarlo
+            SelectedWeekIndex = Array.IndexOf(WeekDays, tarea.RegistradoProgramado);
+            ShowModal = true;
+        }
+        else if (tarea.Periodicidad == "Mensual")
+        {
+            IsWeekly = false; IsMonthly = true; IsAnnual = false;
+            ModalTitle = tarea.Nombre;
+            SelectedDate = DateTime.Today;
+            ShowModal = true;
+        }
+        else if (tarea.Periodicidad == "Anual")
+        {
+            IsWeekly = false; IsMonthly = false; IsAnnual = true;
+            ModalTitle = tarea.Nombre;
+            SelectedDate = DateTime.Today;
+            ShowModal = true;
+        }
+        else
+        {
+            tarea.Realizado = value;
+        }
+    }
+
+    // ✅ Guarda lo seleccionado en el modal
+    private void SaveModal()
+    {
+        if (CurrentTask != null)
+        {
+            CurrentTask.Realizado = true;
+
+            if (IsWeekly)
+            {
+                if (SelectedWeekIndex >= 0 && SelectedWeekIndex < WeekDays.Length)
+                    CurrentTask.RegistradoProgramado = WeekDays[SelectedWeekIndex];
+                else
+                    CurrentTask.RegistradoProgramado = "Día no asignado";
+            }
+            else if (IsMonthly)
+            {
+                CurrentTask.RegistradoProgramado = SelectedDate.ToString("dd MMMM");
+            }
+            else if (IsAnnual)
+            {
+                CurrentTask.RegistradoProgramado = SelectedDate.ToString("MMMM yyyy");
+            }
+        }
+        ShowModal = false;
+    }
+
+    private void CloseModal()
+    {
+        ShowModal = false;
+    }
+   
+
+}
+
+<style>
+    .title {
+        text-align: center;
+        font-size: 1.8rem;
+        margin-bottom: 1.5rem;
+        color: #333;
+    }
+
+    .evaluation-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        width: 95%;
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .block {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+
+    .block-title {
+        color: #1a237e;
+        font-size: 1.2rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .activities-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .activities-table th {
+            text-align: left;
+            background: #f4f4f8;
+            padding: 0.6rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .activities-table td {
+            padding: 0.6rem;
+            border-top: 1px solid #eee;
+            vertical-align: middle;
+        }
+
+    .badge {
+        padding: 0.3rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        color: #fff;
+        text-transform: capitalize;
+    }
+
+        .badge.diario {
+            background: #4caf50;
+        }
+
+        .badge.semanal {
+            background: #2196f3;
+        }
+
+        .badge.mensual {
+            background: #9c27b0;
+        }
+
+        .badge.eventual {
+            background: #ff9800;
+        }
+
+        .badge.anual {
+            background: #607d8b;
+        }
+
+    .check-cell {
+        text-align: center;
+    }
+
+    /* ✅ Modal centrado */
+    .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal {
+        background: #fff;
+        border-radius: 14px;
+        padding: 1.5rem;
+        width: 90%;
+        max-width: 360px;
+        box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        animation: fadeIn 0.25s ease-in-out;
+    }
+
+
+    .modal-title {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #333;
+        text-align: center;
+    }
+
+    .modal-body {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .weekdays {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+    }
+
+    .day-option {
+        background: #f3f3f3;
+        border-radius: 8px;
+        padding: 0.3rem 0.6rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+        .day-option:hover {
+            background: #e2e8f0;
+        }
+
+        .day-option input[type="radio"] {
+            accent-color: #007bff;
+        }
+
+    .input-date {
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        width: 100%;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.8rem;
+    }
+
+    .btn-save, .btn-cancel {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.95rem;
+    }
+
+    .btn-save {
+        background: #007bff;
+        color: white;
+    }
+
+        .btn-save:hover {
+            background: #0056b3;
+        }
+
+    .btn-cancel {
+        background: #f1f1f1;
+        color: #333;
+    }
+
+        .btn-cancel:hover {
+            background: #e0e0e0;
+        }
+</style>

@@ -1,14 +1,11 @@
 ﻿@page "/semanal"
-
 @using System
 @using System.Collections.Generic
 @using System.Globalization
-@using pruebas1.Components
-@using System.ComponentModel.DataAnnotations
-@inject Microsoft.JSInterop.IJSRuntime JSRuntime
-<button class="btn btn-success" >➕ Abrir Modal de Creación</button>
-<div class="agenda-container">
+@inject IJSRuntime JSRuntime
 
+
+<div class="agenda-container">
 
     <header class="agenda-header">
         <button class="btn" @onclick="PrevWeek">
@@ -21,7 +18,6 @@
             Semana siguiente <span class="arrow">&#9654;</span>
         </button>
     </header>
-
 
     <div class="days-grid weekly">
         @foreach (var day in Days.Where(d => d.Date.DayOfWeek != DayOfWeek.Sunday))
@@ -36,37 +32,46 @@
                     @foreach (var block in day.Blocks)
                     {
                         <div class="list-item" style="background-color:@block.Color">
-                            <div class="list-title" @onclick="() => block.IsExpanded = !block.IsExpanded">
+                            <div class="list-title" @onclick="() => ToggleBlock(block)">
                                 @block.Title
-                                <span class="expand-icon">
-                                    @if (block.IsExpanded)
-                                    {
-                                        <span>&#9660;</span>
-                                    }
-                                    else
-                                    {
-                                        <span>&#9658;</span>
-                                    }
-                                </span>
+                                <span style="float:right">@((block.IsExpanded ? "▼" : "►"))</span>
                             </div>
-                            <div class="collapsible @(block.IsExpanded ? "expanded" : "")">
+
+                            @if (block.IsExpanded)
+                            {
                                 <ul class="subtasks">
                                     @foreach (var task in block.SubTasks)
                                     {
-                                        <li @onclick="() => OpenTaskModal(task)">
-                                            @if (task is BaseTask baseTask)
+                                        <li class="task-item">
+                                            @if (task is BaseTask bt)
                                             {
-                                                <input type="checkbox" @bind="baseTask.IsCompleted" @onclick:stopPropagation />
-                                                <span class="@(baseTask.IsCompleted ? "completed" : "")">@baseTask.Name</span>
+                                                @if (block.Title != "Órdenes de Trabajo")
+                                                {
+                                                    <input type="checkbox" @bind="bt.IsCompleted" />
+                                                    <span class="task-name" @onclick="() => OpenTaskModal(bt, false)">
+                                                        @bt.Name
+                                                    </span>
+                                                    <button class="edit-btn" title="Editar" @onclick="() => OpenTaskModal(bt, true)">✏️</button>
+                                                    <button class="delete-btn" title="Eliminar" @onclick="() => DeleteTask(bt)">🗑️</button>
+                                                }
+                                                else
+                                                {
+                                                    <!-- Órdenes de Trabajo: solo mostrar nombre, nada más -->
+                                                    <span>@bt.Name</span>
+                                                }
                                             }
-                                            else
+                                            else if (task is SelfAssessment sa)
                                             {
-                                                <span>@((task as SelfAssessment)?.ActivityName)</span>
+                                                <input type="checkbox" @bind="sa.IsCompleted" />
+                                                <span class="task-name" @onclick="() => OpenTaskModal(sa, false)">
+                                                    @sa.ActivityName
+                                                </span>
                                             }
+
                                         </li>
                                     }
                                 </ul>
-                            </div>
+                            }
                         </div>
                     }
                 </div>
@@ -77,456 +82,80 @@
 
 @if (IsModalOpen && SelectedTaskObject != null)
 {
-    var baseTask = SelectedTaskObject as BaseTask;
-    var isEditable = baseTask != null && baseTask.Type != BlockType.SelfAssessment;
-    var isDeleteEnabled = baseTask != null && baseTask.Type != BlockType.SelfAssessment;
-
     <div class="modal-backdrop" @onclick="CloseTaskModal"></div>
 
     <div class="modal-content">
         <div class="modal-header">
-            <h2><span class="header-icon">🐾</span> @GetModalTitle()</h2>
+            <h2>@GetModalTitle()</h2>
             <button class="close-btn" @onclick="CloseTaskModal">&times;</button>
         </div>
 
         <div class="modal-body">
-            @if (baseTask != null)
+            @if (SelectedTaskObject is BaseTask bt)
             {
                 <div class="form-group">
-                    <label>Nombre:</label>
-                    <input type="text" @bind="baseTask.Name" disabled="@(!isEditable)" />
+                    <label>Actividad:</label>
+                    <input type="text" @bind="bt.Name" disabled="@(!IsEditMode)" />
                 </div>
-
                 <div class="form-group">
-                    <label>Objetivo:</label>
-                    <input type="text" @bind="baseTask.Objective" disabled="@(!isEditable)" />
+                    <label>Descripción:</label>
+                    <textarea @bind="bt.Description" disabled="@(!IsEditMode)"></textarea>
                 </div>
-
-                @if (SelectedTaskObject is WorkOrder wo)
-                {
-                    <div class="form-group">
-                        <label>No. de Orden:</label>
-                        <input type="text" @bind="wo.OrderNumber" disabled="@(!isEditable)" />
-                    </div>
-                }
-                else if (SelectedTaskObject is GeneralTask gt)
-                {
-                    <div class="form-group">
-                        <label>Descripción:</label>
-                        <textarea @bind="gt.Description" disabled="@(!isEditable)"></textarea>
-                    </div>
-                    <div class="form-group checkbox-group">
-                        <input id="subtasks-toggle" type="checkbox" @bind="gt.HasSubTasks" disabled="@(!isEditable)" />
-                        <label for="subtasks-toggle">Tiene Sub Tareas</label>
-                    </div>
-                }
+                <div class="form-group">
+                    <label>Prioridad:</label>
+                    <select @bind="bt.Priority" disabled="@(!IsEditMode)">
+                        <option value="Alta">🔴 Alta</option>
+                        <option value="Media">🟡 Media</option>
+                        <option value="Baja">🟢 Baja</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Recurrencia:</label>
+                    <select @bind="bt.Recurrence" disabled="@(!IsEditMode)">
+                        <option value="No repetir">No repetir</option>
+                        <option value="Diario">Diario</option>
+                        <option value="Semanal">Semanal</option>
+                        <option value="Quincenal">Quincenal</option>
+                        <option value="Mensual">Mensual</option>
+                        <option value="Anual">Anual</option>
+                    </select>
+                </div>
+                <div class="form-group inline">
+                    <label>Fecha inicio</label>
+                    <input type="date" @bind="bt.StartDate" disabled="@(!IsEditMode)" />
+                </div>
+                <div class="form-group inline">
+                    <label>Fecha fin</label>
+                    <input type="date" @bind="bt.DueDate" disabled="@(!IsEditMode)" />
+                </div>
             }
             else if (SelectedTaskObject is SelfAssessment sa)
             {
-                <p class="read-only-notice">Este es un registro de Autoevaluación. Solo puedes ver las actividades.</p>
                 <div class="form-group">
                     <label>Actividad:</label>
                     <p class="read-only-field">@sa.ActivityName</p>
                 </div>
-                <div class="form-group">
-                    <label>Reflexión:</label>
-                    <p class="read-only-field">@sa.Reflection</p>
-                </div>
-            }
-
-            @if (baseTask != null)
-            {
-                <div class="form-group">
-                    <label>Fecha Límite:</label>
-                    <input type="date" @bind="baseTask.DueDate" disabled="@(!isEditable)" />
-                </div>
-
-                <div class="form-group checkbox-group">
-                    <input id="task-completed" type="checkbox" @bind="baseTask.IsCompleted" disabled="@(!isEditable)" />
-                    <label for="task-completed">¡Tarea completada! (Misión Exitosa)</label>
-                </div>
-            }
-
-            @if (!string.IsNullOrEmpty(AlertMessage))
-            {
-                <div class="simulated-alert @AlertClass">@AlertMessage</div>
             }
         </div>
 
         <div class="modal-footer">
-            @if (isDeleteEnabled)
+            @if (IsEditMode)
             {
-                <button class="action-btn delete" @onclick="HandleDeleteClick">
-                    <span class="icon">🗑️</span> Eliminar
-                </button>
-            }
 
-            @if (isEditable)
-            {
-                <button class="action-btn save" @onclick="HandleSaveClick">
-                    <span class="icon">💾</span> Guardar Cambios
-                </button>
+
+                <button class="action-btn save" @onclick="SaveTask">💾 Guardar</button>
+
+                <button class="action-btn cancel" @onclick="CancelEdit">❌ Cancelar</button>
             }
             else
             {
-                <button class="action-btn save" @onclick="CloseTaskModal">
-                    <span class="icon">✔️</span> Cerrar
-                </button>
+                <button class="action-btn save" @onclick="() => IsModalOpen = false">✔️ Cerrar</button>
             }
         </div>
     </div>
 }
 
-
-<style>
-    /* ========================================================= */
-    /* ESTILOS DE LA AGENDA (Sin cambios aquí) */
-    /* ========================================================= */
-    .agenda-container {
-        font-family: Inter, system-ui, sans-serif;
-        background: #fff;
-        padding: 30px;
-        border-radius: 12px;
-        width: 100vw;
-        height: 100vh;
-        max-width: 100%;
-        max-height: 100%;
-        margin: 0;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .agenda-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 20px;
-        margin-bottom: 20px;
-        gap: 20px;
-    }
-
-        .agenda-header h1 {
-            font-size: 28px;
-            margin: 0;
-            flex-grow: 1;
-            text-align: center;
-        }
-
-    .btn {
-        background: #0B3C4A;
-        color: white;
-        border: none;
-        padding: 8px 14px;
-        border-radius: 6px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-weight: 600;
-        transition: background 0.2s;
-    }
-
-        .btn:hover {
-            background: #09333e;
-            color: white;
-        }
-
-        .btn:active {
-            color: white;
-        }
-
-        .btn.primary {
-            background: #0B3C4A;
-            color: white;
-        }
-
-            .btn.primary:hover {
-                background: #09333e;
-                color: white;
-            }
-
-    .arrow {
-        font-size: 10px;
-    }
-
-    .days-grid.weekly {
-        display: grid;
-        grid-template-columns: repeat(6, 1fr);
-        gap: 14px;
-        flex-grow: 1;
-    }
-
-    .day-card {
-        background: #f9fafb;
-        border-radius: 10px;
-        padding: 15px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .day-header {
-        display: flex;
-        justify-content: space-between;
-        font-size: 18px;
-        font-weight: 600;
-        text-transform: capitalize;
-    }
-
-    .day-date {
-        color: #7c3aed;
-        font-weight: 700;
-    }
-
-    .blocks-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        list-style: none;
-        padding: 0;
-        flex-grow: 1;
-    }
-
-    .list-item {
-        border-radius: 6px;
-        padding: 10px 15px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        overflow: hidden;
-    }
-
-    .list-title {
-        font-weight: 600;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 4px;
-    }
-
-    .collapsible {
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease-in-out;
-    }
-
-        .collapsible.expanded {
-            max-height: 500px;
-        }
-
-    .subtasks {
-        margin: 0;
-        padding-left: 20px;
-        font-size: 14px;
-        list-style: none;
-    }
-
-        .subtasks li {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-        }
-
-            .subtasks li span.completed {
-                text-decoration: line-through;
-                opacity: 0.6;
-            }
-
-    /* ========================================================= */
-    /* 💡 ESTILOS CSS DEL MODAL (Ajustes de tamaño y espacio) */
-    /* ========================================================= */
-
-    .modal-backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(11, 60, 74, 0.8);
-        z-index: 1000;
-    }
-
-    .modal-content {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: #FEFEFE;
-        padding: 15px 25px; /* 💡 PADDING REDUCIDO Y MÁS HORIZONTAL */
-        border-radius: 12px;
-        z-index: 1001;
-        width: 90%;
-        max-width: 580px; /* 💡 MÁS ANCHO */
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-        background-image: radial-gradient(circle, #f0f0f0 1px, transparent 1px);
-        background-size: 20px 20px;
-    }
-
-    .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px; /* 💡 ESPACIO REDUCIDO */
-        border-bottom: 2px solid #FFDAC1;
-        padding-bottom: 5px;
-    }
-
-    .modal-body {
-        /* 💡 CONTENIDO MÁS COMPACTO */
-        padding-bottom: 10px;
-    }
-
-    .modal-header h2 {
-        margin: 0;
-        font-size: 20px;
-        color: #0B3C4A;
-        font-weight: 700;
-    }
-
-    .header-icon {
-        margin-right: 6px;
-        font-size: 1.1em;
-        color: #FFD1DC;
-    }
-
-    .close-btn {
-        background: none;
-        border: none;
-        font-size: 30px;
-        cursor: pointer;
-        line-height: 1;
-        color: #0B3C4A;
-        /* 💡 AGREGADO EL TACHE */
-        font-weight: 300;
-        padding: 0 5px;
-    }
-
-    /* Formulario */
-    .form-group {
-        margin-bottom: 8px; /* 💡 ESPACIO ENTRE GRUPOS REDUCIDO */
-    }
-
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 3px;
-            color: #333;
-            font-size: 14px;
-        }
-
-        .form-group input[type="text"],
-        .form-group input[type="date"],
-        .form-group textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #FFDAC1;
-            border-radius: 6px;
-            box-sizing: border-box;
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 60px;
-        }
-
-            .form-group input:disabled,
-            .form-group textarea:disabled {
-                background-color: #f7f7f7;
-                color: #777;
-            }
-
-    .read-only-field {
-        background-color: #f7f7f7;
-        padding: 8px;
-        border-radius: 6px;
-        color: #444;
-        font-size: 14px;
-        margin: 0;
-        border: 1px solid #eee;
-        white-space: pre-wrap;
-    }
-
-    .read-only-notice {
-        font-size: 14px;
-        font-style: italic;
-        color: #777;
-        margin-bottom: 10px; /* REDUCIDO */
-    }
-
-    .checkbox-group {
-        display: flex;
-        align-items: center;
-    }
-
-        .checkbox-group label {
-            margin-left: 8px;
-            font-weight: normal;
-            font-size: 14px;
-        }
-
-    /* Footer y Botones de Acción */
-    .modal-footer {
-        display: flex;
-        justify-content: space-between;
-        padding-top: 10px; /* 💡 ESPACIO REDUCIDO */
-        border-top: 1px solid #eee;
-    }
-
-    .action-btn {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 15px;
-        font-weight: 700;
-        color: white;
-        border: none;
-        border-radius: 50px;
-        cursor: pointer;
-        transition: background 0.2s, transform 0.1s;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        font-size: 14px;
-    }
-
-        .action-btn:active {
-            transform: translateY(1px);
-        }
-
-        .action-btn.delete {
-            background-color: #ef4444;
-        }
-
-        .action-btn.save {
-            background-color: #0B3C4A;
-        }
-
-    /* 💡 ALERTA SIMULADA (Más compacta) */
-    .simulated-alert {
-        padding: 8px;
-        margin-top: 8px; /* REDUCIDO */
-        border-radius: 4px;
-        font-weight: 600;
-        font-size: 14px;
-        text-align: center;
-    }
-
-        .simulated-alert.success {
-            background-color: #B5EAD7;
-            color: #0B3C4A;
-        }
-
-        .simulated-alert.error {
-            background-color: #FFD1DC;
-            color: #dc2626;
-        }
-
-</style>
-
 @code {
-    // =========================================================
-    // 💡 CLASES DE DATOS PERSONALIZADAS
-    // =========================================================
-
     enum BlockType { AdminTask, WorkOrder, GeneralTask, SelfAssessment }
 
     class BaseTask
@@ -534,31 +163,35 @@
         public Guid Id { get; set; } = Guid.NewGuid();
         public BlockType Type { get; set; }
         public string Name { get; set; }
-        public string Objective { get; set; }
+        public string Description { get; set; }
+        public string Priority { get; set; } = "Media";
+        public string Recurrence { get; set; } = "No repetir";
         public bool IsCompleted { get; set; } = false;
-        public DateTime DueDate { get; set; }
+        public DateTime StartDate { get; set; } = DateTime.Today;
+        public DateTime DueDate { get; set; } = DateTime.Today;
+        public List<object> SubTasks { get; set; } = new();
         public Block ParentBlock { get; set; }
     }
+    async Task ShowAlert(string message)
+    {
+        await JSRuntime.InvokeVoidAsync("alert", message);
+    }
+
+    void ToggleBlock(Block block)
+    {
+        block.IsExpanded = !block.IsExpanded;
+    }
+
 
     class AdminTask : BaseTask { }
-
-    class WorkOrder : BaseTask
-    {
-        public string OrderNumber { get; set; }
-    }
-
-    class GeneralTask : BaseTask
-    {
-        public string Description { get; set; }
-        public bool HasSubTasks { get; set; } = false;
-    }
+    class GeneralTask : BaseTask { }
+    class WorkOrder : BaseTask { }
 
     class SelfAssessment
     {
         public Guid Id { get; set; } = Guid.NewGuid();
-        public BlockType Type { get; set; } = BlockType.SelfAssessment;
         public string ActivityName { get; set; }
-        public string Reflection { get; set; }
+        public bool IsCompleted { get; set; } = false;
         public Block ParentBlock { get; set; }
     }
 
@@ -576,24 +209,12 @@
         public List<Block> Blocks { get; set; } = new();
     }
 
-    // 💡 VARIABLES DE CONTROL DEL MODAL
-    object SelectedTaskObject { get; set; }
-    bool IsModalOpen { get; set; } = false;
-
-    string AlertMessage { get; set; }
-    string AlertClass { get; set; }
-
-
-    private readonly Dictionary<string, string> BlockColors = new Dictionary<string, string>
-    {
-        {"Tareas Administrativas", "#FFD1DC"},
-        {"Órdenes de Trabajo", "#FFDAC1"},
-        {"Tareas", "#B5EAD7"},
-        {"Autoevaluación", "#E2F0CB"}
-    };
-
     List<DayColumn> Days = new();
     DateTime CurrentDate = DateTime.Today;
+    object SelectedTaskObject { get; set; }
+    bool IsModalOpen { get; set; } = false;
+    bool IsEditMode { get; set; } = false;
+
     int WeekNumber => CultureInfo.CurrentCulture.Calendar.GetWeekOfYear(CurrentDate, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
     string MonthName => CultureInfo.GetCultureInfo("es-ES").DateTimeFormat.GetMonthName(CurrentDate.Month);
 
@@ -611,115 +232,345 @@
 
     DayColumn CreateDay(DateTime date)
     {
-        var d = new DayColumn { Date = date };
-
-        if (date.DayOfWeek == DayOfWeek.Sunday)
-        {
-            return d;
-        }
+        var day = new DayColumn { Date = date };
+        if (date.DayOfWeek == DayOfWeek.Sunday) return day;
 
         // Tareas Administrativas
-        var adminBlock = new Block { Title = "Tareas Administrativas", Color = BlockColors["Tareas Administrativas"] };
-        var adminTask1 = new AdminTask { Type = BlockType.AdminTask, Name = "Revisar correos", Objective = "Limpiar bandeja de entrada", DueDate = date.AddHours(9), ParentBlock = adminBlock };
-        var adminTask2 = new AdminTask { Type = BlockType.AdminTask, Name = "Organizar archivos", Objective = "Archivar documentos del mes anterior", DueDate = date.AddHours(10), ParentBlock = adminBlock };
-        adminBlock.SubTasks.Add(adminTask1);
-        adminBlock.SubTasks.Add(adminTask2);
-        d.Blocks.Add(adminBlock);
+        var adminBlock = new Block { Title = "Tareas Administrativas", Color = "#FFD1DC" };
+        var t1 = new AdminTask { Name = "Área de TI limpia", Description = "Me aseguré de que el área y la estación de insumos de TI esté limpia, ordenada y funcional", ParentBlock = adminBlock, Type = BlockType.AdminTask };
+        t1.SubTasks.Add(new BaseTask { Name = "Subtarea 1" });
+        t1.SubTasks.Add(new BaseTask { Name = "Subtarea 2" });
+        var t2 = new AdminTask { Name = "Control de suscripciones", Description = "Di seguimiento en tiempo y forma al control de suscripciones de las que es responsable TI.", ParentBlock = adminBlock, Type = BlockType.AdminTask };
+        var t3 = new AdminTask { Name = "Recepción de facturas", Description = "Di seguimiento a la recepción de facturas de acuerdo con las solicitudes de pago y las entregue a Administración.", ParentBlock = adminBlock, Type = BlockType.AdminTask };
+        adminBlock.SubTasks.Add(t1); adminBlock.SubTasks.Add(t2); adminBlock.SubTasks.Add(t3);
+        day.Blocks.Add(adminBlock);
+
+        // Tareas Operativas
+        var opBlock = new Block { Title = "Tareas Operativas", Color = "#B5EAD7" };
+        var o1 = new GeneralTask { Name = "Entregar reporte semanal", Description = "Revisar bien los reportes de la semana", ParentBlock = opBlock, Type = BlockType.GeneralTask };
+        var o2 = new GeneralTask { Name = "Reunión equipo", Description = "Llevar el control de las reuniones hechas", ParentBlock = opBlock, Type = BlockType.GeneralTask };
+        var o3 = new GeneralTask { Name = "Entrega reporte semanal", Description = "Revisar que los reportes de mis compañeros los suban", ParentBlock = opBlock, Type = BlockType.GeneralTask };
+        opBlock.SubTasks.Add(o1); opBlock.SubTasks.Add(o2); opBlock.SubTasks.Add(o3);
+        day.Blocks.Add(opBlock);
 
         // Órdenes de Trabajo
-        var otBlock = new Block { Title = "Órdenes de Trabajo", Color = BlockColors["Órdenes de Trabajo"] };
-        var wo1 = new WorkOrder { Type = BlockType.WorkOrder, Name = "Instalación de Red", Objective = "Conectar nuevo servidor", OrderNumber = "WO-123", DueDate = date.AddHours(11), ParentBlock = otBlock };
-        var wo2 = new WorkOrder { Type = BlockType.WorkOrder, Name = "Mantenimiento Preventivo", Objective = "Revisar equipos críticos", OrderNumber = "WO-124", DueDate = date.AddHours(13), ParentBlock = otBlock };
-        otBlock.SubTasks.Add(wo1);
-        otBlock.SubTasks.Add(wo2);
-        d.Blocks.Add(otBlock);
-
-        // Tareas Generales
-        var tareasBlock = new Block { Title = "Tareas", Color = BlockColors["Tareas"] };
-        var gt1 = new GeneralTask { Type = BlockType.GeneralTask, Name = "Informe semanal", Objective = "Generar reporte de KPIs", Description = "Recopilar datos de producción y analizar tendencias.", HasSubTasks = true, DueDate = date.AddHours(14), ParentBlock = tareasBlock };
-        var gt2 = new GeneralTask { Type = BlockType.GeneralTask, Name = "Actualizar base de datos", Objective = "Ingresar nuevos registros", Description = "Cargar la información de los clientes nuevos.", DueDate = date.AddHours(16), ParentBlock = tareasBlock };
-        tareasBlock.SubTasks.Add(gt1);
-        tareasBlock.SubTasks.Add(gt2);
-        d.Blocks.Add(tareasBlock);
+        var woBlock = new Block { Title = "Órdenes de Trabajo", Color = "#FFDAC1" };
+        woBlock.SubTasks.Add(new WorkOrder { Name = "ORD-13683" });
+        woBlock.SubTasks.Add(new WorkOrder { Name = "ORD-13503" });
+        woBlock.SubTasks.Add(new WorkOrder { Name = "ORD-13296" });
+        day.Blocks.Add(woBlock);
 
         // Autoevaluación
-        var autoBlock = new Block { Title = "Autoevaluación", Color = BlockColors["Autoevaluación"] };
-        var sa1 = new SelfAssessment { ActivityName = "Reflexión diaria", Reflection = "Hoy logré enfocarme en las tareas difíciles. Mi punto a mejorar es la gestión del tiempo.", ParentBlock = autoBlock };
-        autoBlock.SubTasks.Add(sa1);
-        d.Blocks.Add(autoBlock);
+        var autoBlock = new Block { Title = "Autoevaluación", Color = "#E2F0CB" };
+        autoBlock.SubTasks.Add(new SelfAssessment { ActivityName = "Me aseguré de que el área y la estación de insumos de TI esté limpia, ordenada y funcional.", ParentBlock = autoBlock });
+        autoBlock.SubTasks.Add(new SelfAssessment { ActivityName = "Validé que los vales de papelería relacionados con los insumos de TI se encuentren llenados correctamente; realicé el escaneo de los mismos y entregué a servicios de oficina.", ParentBlock = autoBlock });
+        autoBlock.SubTasks.Add(new SelfAssessment { ActivityName = "Confirmé con el personal de TI, al menos 2 veces al día, las actividades programadas de acuerdo con su programa de trabajo.", ParentBlock = autoBlock });
+        day.Blocks.Add(autoBlock);
 
-        return d;
+        return day;
     }
 
-    // 💡 LÓGICA DEL MODAL DINÁMICO
     string GetModalTitle()
     {
-        if (SelectedTaskObject is WorkOrder) return "Detalles de Orden de Trabajo";
-        if (SelectedTaskObject is AdminTask) return "Detalles de Tarea Administrativa";
-        if (SelectedTaskObject is GeneralTask) return "Detalles de Tarea General";
-        if (SelectedTaskObject is SelfAssessment) return "Registro de Autoevaluación";
-        return "Detalles de Misión";
+        if (SelectedTaskObject is BaseTask bt)
+            return bt.Type switch
+            {
+                BlockType.AdminTask => "Tarea Administrativa",
+                BlockType.GeneralTask => "Tarea Operativa",
+                _ => "Detalles de la tarea"
+            };
+        else if (SelectedTaskObject is SelfAssessment)
+            return "Registro de Autoevaluación";
+        return "Detalles";
     }
 
-    void OpenTaskModal(object task)
+    void OpenTaskModal(object task, bool editMode)
     {
-        AlertMessage = null;
         SelectedTaskObject = task;
         IsModalOpen = true;
+        IsEditMode = editMode;
     }
 
     void CloseTaskModal()
     {
         SelectedTaskObject = null;
         IsModalOpen = false;
-        AlertMessage = null;
-        StateHasChanged();
+        IsEditMode = false;
     }
 
-    // 💡 Simulación de alerta en la UI
-    private void ShowAlert(string message, string className)
+    void SaveTask()
     {
-        AlertMessage = message;
-        AlertClass = className;
+        IsEditMode = false;
     }
 
-    private void HandleSaveClick()
+    void CancelEdit()
     {
-        var baseTask = SelectedTaskObject as BaseTask;
-        if (baseTask == null || string.IsNullOrWhiteSpace(baseTask.Name))
+        IsEditMode = false;
+    }
+
+    void DeleteTask(BaseTask bt)
+    {
+        if (bt.Type == BlockType.AdminTask || bt.Type == BlockType.GeneralTask)
         {
-            ShowAlert("¡Ups! El nombre no puede estar vacío.", "error");
-            return;
+            if (!JSRuntime.InvokeAsync<bool>("confirm", $"¿Estás seguro de eliminar la tarea '{bt.Name}'?").Result)
+                return;
         }
-
-        // Lógica de guardado (los binds ya actualizaron el objeto)
-        ShowAlert("¡Guau! 🐕 Cambios guardados con éxito.", "success");
-
-        // 💡 CIERRE AUTOMÁTICO AL GUARDAR
-        // Usamos un pequeño delay para que el usuario alcance a ver el mensaje de éxito.
-        System.Threading.Tasks.Task.Delay(500).ContinueWith(_ => { CloseTaskModal(); });
+        bt.ParentBlock?.SubTasks.Remove(bt);
     }
-
-    private void HandleDeleteClick()
-    {
-        var baseTask = SelectedTaskObject as BaseTask;
-
-        // Simulación de confirmación (manteniendo la confirmación JS para eliminar por seguridad)
-        if (System.Threading.Tasks.Task.Run(async () => await JSRuntime.InvokeAsync<bool>("confirm", "¿Seguro que quieres eliminar esta misión? ¡No hay vuelta atrás!")).Result)
-        {
-            if (baseTask != null && baseTask.ParentBlock != null)
-            {
-                baseTask.ParentBlock.SubTasks.Remove(baseTask);
-
-                ShowAlert("¡Misión cancelada! 👋", "success");
-
-                // Cierre con un pequeño delay para que la alerta no se pierda
-                System.Threading.Tasks.Task.Delay(500).ContinueWith(_ => { CloseTaskModal(); });
-            }
-        }
-    }
-
 
     void PrevWeek() { CurrentDate = CurrentDate.AddDays(-7); BuildWeek(); }
     void NextWeek() { CurrentDate = CurrentDate.AddDays(7); BuildWeek(); }
 }
+
+<style>
+    / /* Contenedor principal */
+    .agenda-container {
+        font-family: Inter, sans-serif;
+        background: #fff;
+        padding: 20px;
+        border-radius: 12px;
+        width: 100vw;
+        height: 100vh; /* Ocupa toda la pantalla */
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        overflow: hidden; /* Evita espacios extra */
+    }
+
+    /* Header */
+    .agenda-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+        .agenda-header h1 {
+            margin: 0;
+            flex-grow: 1;
+            text-align: center;
+        }
+
+    /* Botones */
+    .btn {
+        background: #0B3C4A;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+        .btn:hover {
+            background: #09333e;
+        }
+
+    /* Grid de días */
+    .days-grid.weekly {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 12px;
+        flex-grow: 1;
+        overflow-y: auto; /* Scroll si se excede altura */
+    }
+
+    /* Tarjetas de día */
+    .day-card {
+        background: #f9fafb;
+        border-radius: 10px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 100%;
+        overflow-y: auto;
+    }
+
+    /* Header del día */
+    .day-header {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+        text-transform: capitalize;
+    }
+
+    /* Lista de bloques */
+    .blocks-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    /* Bloques individuales */
+    .list-item {
+        border-radius: 8px;
+        padding: 8px 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    /* Título del bloque */
+    .list-title {
+        font-weight: 600;
+        margin-bottom: 4px;
+        user-select: none;
+    }
+
+    /* Subtareas */
+    .subtasks {
+        list-style: none;
+        padding-left: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 300px;
+        overflow-y: auto; /* Scroll interno si muchas subtareas */
+    }
+
+    /* Ítems de tarea */
+    .task-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 0;
+        border-bottom: 1px solid #ddd;
+    }
+
+    /* Nombre de la tarea */
+    .task-name {
+        flex-grow: 1;
+        cursor: pointer;
+    }
+
+    /* Botones de editar y eliminar */
+    .edit-btn, .delete-btn {
+        font-size: 14px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        margin-left: 4px;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(11,60,74,0.7);
+        z-index: 1000;
+    }
+
+    .modal-content {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%,-50%);
+        background: #FEFEFE;
+        padding: 20px;
+        border-radius: 12px;
+        z-index: 1001;
+        width: 90%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+    }
+
+    /* Header del modal */
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        border-bottom: 2px solid #FFDAC1;
+        padding-bottom: 5px;
+    }
+
+    .close-btn {
+        font-size: 24px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #0B3C4A;
+    }
+
+    /* Formulario dentro del modal */
+    .form-group {
+        margin-bottom: 10px;
+    }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid #FFDAC1;
+            box-sizing: border-box;
+        }
+
+    textarea {
+        min-height: 50px;
+        resize: vertical;
+    }
+
+        input:disabled, textarea:disabled, select:disabled {
+            background: #f7f7f7;
+            color: #555;
+        }
+
+    /* Tabla de sub-tareas */
+    .subtask-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 6px;
+    }
+
+        .subtask-table th, .subtask-table td {
+            border: 1px solid #ddd;
+            padding: 4px;
+            text-align: left;
+        }
+
+    /* Footer modal */
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 6px;
+        padding-top: 8px;
+        border-top: 1px solid #eee;
+    }
+
+    /* Botones de acción */
+    .action-btn {
+        padding: 6px 12px;
+        font-weight: 700;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+        .action-btn.save {
+            background: #0B3C4A;
+        }
+
+        .action-btn.cancel {
+            background: #ef4444;
+        }
+
+</style>

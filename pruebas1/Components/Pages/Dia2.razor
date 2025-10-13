@@ -1,104 +1,12 @@
-﻿@page "/dia2"
+﻿@page "/"
 @using System.Linq
 @using System.Globalization
 @inject NavigationManager navigate
+@using Microsoft.AspNetCore.Components.Web
+@using pruebas1.Components
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<!-- modall formulario -->
-<button class="btn btn-success" @onclick="@OpenModal">➕ Abrir Modal de Creación</button>
-<br />
-<br />
-<br />
-<!-- MODAL -->
-<div class="modal-container @(ShowModal ? "visible" : "")" @onclick="CloseModal">
-    <div class="modal-content" @onclick:stopPropagation="true">
-        <!-- CABECERA -->
-        <div class="modal-header">
-            <h2 class="modal-title">Crear Nuevo @FormType</h2>
-            <span class="close-button" @onclick="CloseModal">&times;</span>
-        </div>
-
-        <!-- CUERPO DIVIDIDO -->
-        <div class="modal-body-wrapper">
-            <!-- Sidebar: selector de tipo -->
-            <div class="form-type-selector">
-                <button class="@(FormType == FormTypes.Evento ? "active" : "")"
-                        @onclick="@(() => SetFormType(FormTypes.Evento))">
-                    📅 Evento
-                </button>
-                <button class="@(FormType == FormTypes.Tarea ? "active" : "")"
-                        @onclick="@(() => SetFormType(FormTypes.Tarea))">
-                    ✅ Tarea
-                </button>
-                <button class="@(FormType == FormTypes.Administrativa ? "active" : "")"
-                        @onclick="@(() => SetFormType(FormTypes.Administrativa))">
-                    🗂️ Administrativa
-                </button>
-            </div>
-
-            <!-- Formulario dinámico -->
-            <div class="form-section-wrapper">
-                @if (FormType == FormTypes.Evento)
-                {
-                    <div class="form-section">
-                        <div class="form-group">
-                            <label>Título del evento</label>
-                            <input class="form-control" />
-                        </div>
-                        <div class="form-group">
-                            <label>Fecha</label>
-                            <input type="date" class="form-control" />
-                        </div>
-                    </div>
-                }
-                else if (FormType == FormTypes.Tarea)
-                {
-                    <div class="form-section">
-                        <div class="form-group form-group-span-2">
-                            <label>Nombre de la tarea</label>
-                            <input class="form-control" />
-                        </div>
-                        <div class="form-group form-group-span-2">
-                            <label>Subtareas</label>
-                            <div class="input-group">
-                                <input class="form-control"
-                                       @bind="newSubtask"
-                                       @onkeydown="AddSubtaskOnEnter"
-                                       placeholder="Escribe y presiona Enter" />
-                                <button class="btn btn-success" @onclick="AddSubtask">➕</button>
-                            </div>
-                            <ul class="todo-list">
-                                @foreach (var t in subtasks)
-                                {
-                                    <li>
-                                        <input type="checkbox" />
-                                        <span>@t</span>
-                                        <button class="delete-button" @onclick="() => RemoveSubtask(t)">✖</button>
-                                    </li>
-                                }
-                            </ul>
-                        </div>
-                    </div>
-                }
-                else if (FormType == FormTypes.Administrativa)
-                {
-                    <div class="form-section">
-                        <div class="form-group form-group-span-2">
-                            <label>Descripción administrativa</label>
-                            <textarea class="form-control tall-textarea"></textarea>
-                        </div>
-                    </div>
-                }
-            </div>
-        </div>
-
-        <!-- FOOTER -->
-        <div class="modal-footer">
-            <button class="btn btn-secondary" @onclick="CloseModal">Cancelar</button>
-            <button class="btn btn-success" @onclick="CloseModal">Guardar</button>
-        </div>
-    </div>
-</div>
+<ReusableModal />
 <div class="agenda-container">
     <!-- BARRA SUPERIOR CON FECHA Y BOTONES DE NAVEGACIÓN -->
     <div class="top-bar-container">
@@ -109,10 +17,8 @@
 
             <div class="calendar-wrapper">
                 <button class="calendar-btn" @onclick="AbrirCalendario">📅</button>
-
                 @if (MostrarModal)
                 {
-                    <!-- CALENDARIO POPUP -->
                     <div class="modal-popover" @onclick:stopPropagation="true">
                         <div class="calendar-header">
                             <button class="calendar-btn" @onclick="MesAnterior"><i class="bi bi-chevron-left"></i></button>
@@ -168,9 +74,8 @@
         @foreach (var cat in Categories)
         {
             <div class="card block-card @cat.ColorClass">
-                <div class="card-header block-header" @onclick="() => Toggle(cat)">
+                <div class="block-header" @onclick="() => ToggleCollapse(cat)">
                     <div class="header-left">
-                        <button class="toggle-btn">@((cat.IsOpen) ? "▾" : "▸")</button>
                         <h3 class="block-title">@cat.Name</h3>
                     </div>
                     <div class="header-right">
@@ -182,33 +87,39 @@
                         {
                             <span class="badge pendiente">@RemainingCount(cat) pendiente(s)</span>
                         }
+                        <button class="btn btn-floating" style="font-size:0.8rem; padding:0.2rem 0.5rem;">
+                            @(cat.IsCollapsed ? "▼" : "▲")
+                        </button>
                     </div>
                 </div>
 
-                @if (cat.IsOpen)
+                @if (!cat.IsCollapsed)
                 {
                     <div class="card-body block-body">
                         <ul class="subtask-list">
                             @foreach (var st in cat.Subtasks)
                             {
                                 <li class="subtask-item">
-                                    <input type="checkbox" id="@st.Id" checked="@st.IsDone" @onchange="(e) => ToggleSubtask(cat, st)" />
-                                    <label for="@st.Id" class="subtask-label @(st.IsDone ? "done" : "")">
+                                    <div class="subtask-label @(st.IsDone ? "done" : "")">
+                                        @if (cat.Name != "Órdenes de Trabajo")
+                                        {
+                                            <input type="checkbox" checked="@st.IsDone" @onchange="(e) => ToggleSubtask(cat, st)" />
+                                        }
                                         <span class="subtask-text">@st.Title</span>
                                         @if (st.IsDone)
                                         {
                                             <small class="done-text">Hecho</small>
                                         }
-                                    </label>
+                                    </div>
 
-                                    @if ((cat.Name == "Tareas Administrativas") && st.ShowTable)
+                                    @if ((cat.Name == "Tareas Administrativas" || cat.Name == "Tareas Operativas") && st.Subtasks.Any())
                                     {
                                         <div class="table-wrapper">
                                             <table class="subtask-table">
                                                 <thead>
                                                     <tr>
                                                         <th>Subtarea</th>
-                                                        <th>Objetivo</th>
+                                                        <th>Descripción</th>
                                                         <th>Hecho</th>
                                                     </tr>
                                                 </thead>
@@ -217,9 +128,9 @@
                                                     {
                                                         <tr>
                                                             <td>@s2.Title</td>
-                                                            <td>Objetivo de @s2.Title</td>
+                                                            <td>@($"Objetivo de {s2.Title}")</td>
                                                             <td>
-                                                                <input type="checkbox" id="@s2.Id" checked="@s2.IsDone" @onchange="(e) => ToggleInnerSubtask(cat, st, s2)" />
+                                                                <input type="checkbox" checked="@s2.IsDone" @onchange="(e) => ToggleInnerSubtask(cat, st, s2)" />
                                                             </td>
                                                         </tr>
                                                     }
@@ -230,6 +141,7 @@
                                 </li>
                             }
                         </ul>
+
                         <div class="actions">
                             <button class="btn small" @onclick="() => MarkAll(cat, true)">Marcar todo</button>
                             <button class="btn small outline" @onclick="() => MarkAll(cat, false)">Desmarcar todo</button>
@@ -241,23 +153,20 @@
     }
 </div>
 
-
 <style>
-
-    /* VARIABLES DE COLOR - PALETA MÁS MODERNA */
+    /* ---------------- VARIABLES DE COLOR ---------------- */
     :root {
-        --primary-color: #5b5b9e; /* Un tono de morado/azul más profundo y moderno */
+        --primary-color: #5b5b9e;
         --primary-dark-color: #4a4a81;
         --secondary-color: #6c757d;
         --success-color: #28a745;
         --danger-color: #dc3545;
-        --background-color: #f4f7f6; /* Fondo más suave */
-        --text-color: #343a40; /* Texto oscuro */
+        --background-color: #f4f7f6;
+        --text-color: #343a40;
         --border-color: #ced4da;
         --input-bg-color: #fff;
-        --sidebar-bg: #e9ecef; /* Fondo claro para el selector */
+        --sidebar-bg: #e9ecef;
     }
-   
 
     /* ---------------- MODAL BASE ---------------- */
     .modal-container {
@@ -266,14 +175,14 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.6);
+        background: rgba(0,0,0,0.6);
         display: flex;
         justify-content: center;
-        align-items: center; /* Centrado vertical en lugar de alineado arriba */
+        align-items: center;
         z-index: 1000;
         opacity: 0;
         visibility: hidden;
-        transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        transition: 0.3s;
     }
 
         .modal-container.visible {
@@ -282,15 +191,15 @@
         }
 
     .modal-content {
-        background-color: var(--input-bg-color);
-        border-radius: 12px; /* Esquinas más suaves */
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        background: var(--input-bg-color);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
         width: 90%;
-        max-width: 1000px; /* Ancho grande y definido */
-        height: 90vh; /* Mayor altura */
+        max-width: 1000px;
+        height: 90vh;
         max-height: 800px;
         transform: scale(0.95);
-        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Rebote suave */
+        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -318,17 +227,14 @@
     .close-button {
         font-size: 2.5rem;
         color: var(--secondary-color);
-        position: static;
-        transform: none;
         cursor: pointer;
-        line-height: 1;
     }
 
         .close-button:hover {
             color: var(--danger-color);
         }
 
-    /* ---------------- CUERPO PRINCIPAL - DIVIDIDO ---------------- */
+    /* ---------------- CUERPO ---------------- */
     .modal-body-wrapper {
         flex-grow: 1;
         display: flex;
@@ -336,12 +242,11 @@
         background-color: var(--background-color);
     }
 
-    /* Selector Lateral de Tipo (Sidebar) */
     .form-type-selector {
-        flex-shrink: 0; /* No se encoge */
-        width: 220px; /* Un poco más ancho */
+        flex-shrink: 0;
+        width: 220px;
         padding: 1.5rem;
-        background-color: var(--sidebar-bg);
+        background: var(--sidebar-bg);
         border-right: 1px solid var(--border-color);
         display: flex;
         flex-direction: column;
@@ -351,50 +256,43 @@
         .form-type-selector button {
             padding: 0.8rem 1rem;
             border: none;
-            background-color: transparent;
+            background: transparent;
             color: var(--text-color);
             font-weight: 500;
             border-radius: 6px;
             text-align: left;
-            transition: background-color 0.2s, color 0.2s;
             display: flex;
             align-items: center;
             gap: 0.75rem;
             cursor: pointer;
+            transition: 0.2s;
         }
 
             .form-type-selector button:hover {
-                background-color: #dee2e6;
+                background: #dee2e6;
             }
 
             .form-type-selector button.active {
-                background-color: var(--primary-color);
+                background: var(--primary-color);
                 color: #fff;
                 font-weight: bold;
-                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             }
 
-        .form-type-selector .icon {
-            font-size: 1.2rem;
-            line-height: 1;
-        }
-
-    /* Contenido Principal (Scrollable) */
     .form-section-wrapper {
         flex: 1;
         overflow-y: auto;
         padding: 1.5rem 2rem;
     }
 
-    /* GRID DEL FORMULARIO */
     .form-section {
         display: grid;
-        grid-template-columns: repeat(2, 1fr); /* Dos columnas fijas para desktop */
+        grid-template-columns: repeat(2,1fr);
         gap: 1.5rem 2rem;
     }
 
     .form-group-span-2 {
-        grid-column: 1 / -1; /* Ocupa las dos columnas */
+        grid-column: 1 / -1;
     }
 
     .section-label {
@@ -407,7 +305,7 @@
         display: block;
     }
 
-    /* Controles y Etiquetas */
+    /* INPUTS Y TEXTAREA */
     .form-group label {
         display: block;
         font-weight: 600;
@@ -421,16 +319,14 @@
         padding: 0.75rem 1rem;
         border: 1px solid var(--border-color);
         border-radius: 6px;
-        box-sizing: border-box;
         font-size: 1rem;
-        background-color: var(--input-bg-color);
-        transition: border-color 0.2s, box-shadow 0.2s;
+        background: var(--input-bg-color);
     }
 
         .form-control:focus {
             outline: none;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 0.2rem rgba(91, 91, 158, 0.25);
+            box-shadow: 0 0 0 0.2rem rgba(91,91,158,0.25);
         }
 
     .tall-textarea {
@@ -442,94 +338,10 @@
         margin-top: 0.5rem;
     }
 
-    /* Agrupación en línea (Fecha/Hora) */
-    .form-group-inline {
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-        align-items: flex-end;
-    }
-
-    .inline-control-group {
-        flex: 1 1 20%;
-        min-width: 120px;
-    }
-
-    .form-group-checkbox {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        flex-basis: auto; /* Para que no fuerce un ancho grande */
-        min-width: unset;
-        justify-content: flex-start;
-    }
-
-        .form-group-checkbox label {
-            margin-bottom: 0;
-            order: 2;
-        }
-
-        .form-group-checkbox input[type="checkbox"] {
-            order: 1;
-            width: 1.2rem;
-            height: 1.2rem;
-            margin: 0;
-        }
-
-    /* Botones */
-    .btn {
-        padding: 0.75rem 1.5rem;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: bold;
-        transition: background-color 0.2s, transform 0.1s;
-        font-size: 0.95rem;
-    }
-
-    .btn-primary {
-        background-color: var(--primary-color);
-        color: #fff;
-    }
-
-        .btn-primary:hover {
-            background-color: var(--primary-dark-color);
-        }
-
-    .btn-success {
-        background-color: var(--success-color);
-        color: #fff;
-    }
-
-    .btn-secondary {
-        background-color: var(--secondary-color);
-        color: #fff;
-    }
-
-        .btn-secondary:hover {
-            background-color: #5a6268;
-        }
-
-    /* Deshabilitado (Disabled) */
-    .disabled-group label {
-        color: #999;
-    }
-
-    .disabled-group input, .disabled-group select, .disabled-group textarea, .disabled-group .input-group button {
-        background-color: #e9ecef !important;
-        border-color: #dee2e6 !important;
-        color: #999 !important;
-        cursor: not-allowed !important;
-    }
-
-    /* Sub tareas */
-    .input-group {
-        display: flex;
-        gap: 0.5rem;
-    }
-
+    
+    /* SUBTAREAS */
     .todo-list {
-        list-style-type: none;
+        list-style: none;
         padding: 0;
         margin-top: 1rem;
     }
@@ -540,7 +352,7 @@
             gap: 0.75rem;
             margin-bottom: 0.4rem;
             padding: 0.6rem 1rem;
-            background-color: var(--input-bg-color);
+            background: var(--input-bg-color);
             border: 1px solid #e9ecef;
             border-radius: 6px;
         }
@@ -551,44 +363,37 @@
             flex-shrink: 0;
         }
 
-        .todo-list span {
-            flex: 1;
-            font-size: 0.95rem;
-        }
-
     .delete-button {
         background: none;
         border: none;
-        color: #888;
+        color: #861B2D;
         font-size: 1.5rem;
         cursor: pointer;
         padding: 0;
         line-height: 1;
-        flex-shrink: 0;
     }
 
         .delete-button:hover {
             color: var(--danger-color);
         }
 
-    /* ---------------- FOOTER DEL MODAL ---------------- */
+    /* MODAL FOOTER */
     .modal-footer {
         padding: 1rem 2rem;
         border-top: 1px solid var(--border-color);
         display: flex;
         justify-content: flex-end;
         gap: 1rem;
-        flex-shrink: 0;
     }
 
-    /* ---------------- ALERTAS (Overlay) ---------------- */
+    /* ALERTAS */
     .alert-backdrop {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.4);
+        background: rgba(0,0,0,0.4);
         z-index: 1999;
     }
 
@@ -597,10 +402,10 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background-color: var(--input-bg-color);
+        background: var(--input-bg-color);
         padding: 2rem;
         border-radius: 10px;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
         z-index: 2000;
         text-align: center;
         min-width: 350px;
@@ -624,67 +429,36 @@
         color: #fff;
     }
 
-    /* ---------------- MEDIA QUERIES (Responsive) ---------------- */
-    @@media (max-width: 992px) {
-        .modal-content {
-            max-width: 700px;
-            height: 95vh;
-            max-height: 95vh;
-        }
-
-        .modal-body-wrapper {
-            flex-direction: column;
-        }
-        /* En móvil/tablet, el selector se convierte en una fila horizontal */
-        .form-type-selector {
-            width: 100%;
-            flex-direction: row;
-            border-right: none;
-            border-bottom: 1px solid var(--border-color);
-            padding: 1rem 1.5rem;
-            overflow-x: auto;
-            white-space: nowrap;
-            gap: 0.5rem;
-        }
-
-            .form-type-selector button {
-                flex-shrink: 0;
-                padding: 0.6rem 0.8rem;
-            }
-
-        .form-section-wrapper {
-            padding: 1.5rem;
-        }
-        /* En móvil, el grid se colapsa a una sola columna */
-        .form-section {
-            grid-template-columns: 1fr;
-            gap: 1.5rem;
-        }
-
-        .form-group-span-2 {
-            grid-column: auto; /* Deshace el span de 2 columnas */
-        }
-
-        .form-group-inline {
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .inline-control-group {
-            min-width: 100%;
-        }
+    /* SUBTASK LIST / TABLES */
+    .table-wrapper {
+        margin-left: 36px;
+        margin-top: 6px;
     }
-    /* ------------------------------------------- */
-    /* ESTILOS ORIGINALES DE CATEGORÍAS */
-    /* ------------------------------------------- */
 
+    .subtask-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+        .subtask-table th, .subtask-table td {
+            border: 1px solid rgba(0,0,0,0.1);
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        .subtask-table th {
+            background: rgba(0,0,0,0.05);
+        }
+
+    /* BLOQUES / CARDS */
     .agenda-container {
         max-width: 900px;
         margin: 18px auto;
         font-family: 'Segoe UI', Roboto, Arial, sans-serif;
-        gap: 14px;
         display: flex;
         flex-direction: column;
+        gap: 14px;
         padding: 8px;
     }
 
@@ -703,30 +477,10 @@
         cursor: pointer;
     }
 
-    .header-left {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .toggle-btn {
-        background: transparent;
-        border: none;
-        font-size: 18px;
-        width: 30px;
-        text-align: center;
-    }
-
     .block-title {
         margin: 0;
         font-size: 1.05rem;
         font-weight: 600;
-    }
-
-    .header-right {
-        display: flex;
-        align-items: center;
-        gap: 8px;
     }
 
     .card-body {
@@ -766,28 +520,6 @@
         margin-left: 8px;
     }
 
-    .table-wrapper {
-        margin-left: 36px;
-        margin-top: 6px;
-    }
-
-    .subtask-table {
-        width: 100%;
-
-        border-collapse: collapse;
-        font-size: 0.9rem;
-    }
-
-        .subtask-table th, .subtask-table td {
-            border: 1px solid rgba(0,0,0,0.1);
-            padding: 6px 8px;
-            text-align: left;
-        }
-
-        .subtask-table th {
-            background: rgba(0,0,0,0.05);
-        }
-
     .actions {
         margin-top: 12px;
         display: flex;
@@ -821,9 +553,9 @@
     }
 
     .completado {
-        background: rgba(34,197,94,0.12);
-        color: #166534;
-        border: 1px solid rgba(34,197,94,0.18);
+        background: rgba(255, 255, 255);
+        color: #1E1E1E;
+        border: 1.5px solid rgba(34,197,94,0.18);
     }
 
     .pendiente {
@@ -832,7 +564,7 @@
         border: 1px solid rgba(0,0,0,0.05);
     }
 
-    /* Nuevos colores pastel más ejecutivos */
+    /* PASTEL COLORS */
     .pastel-blue .block-header {
         background: linear-gradient(90deg, #FFD1DC, #FFD1DC);
     }
@@ -853,48 +585,7 @@
         background: linear-gradient(90deg, #e9f9f7, #f7fdfd);
     }
 
-    /* Modal de tareas (no de calendario) */
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.45);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1001; /* Asegura que esté por encima de todo */
-    }
-
-    .modal {
-        background: white;
-        padding: 20px;
-        border-radius: 12px;
-        width: 320px;
-        box-shadow: 0 6px 14px rgba(0,0,0,0.2);
-    }
-
-        .modal input {
-            width: 100%;
-            padding: 8px;
-            margin-top: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-        }
-
-    .modal-actions {
-        margin-top: 14px;
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-    }
-
-    /* ------------------------------------------- */
-    /* ESTILOS AÑADIDOS/MODIFICADOS PARA FECHA Y CALENDARIO */
-    /* ------------------------------------------- */
-
-    /* Contenedor principal que alinea fecha al centro y botón a la derecha */
+    /* FECHA Y CALENDARIO */
     .top-bar-container {
         display: flex;
         justify-content: space-between;
@@ -907,11 +598,16 @@
         align-items: center;
         gap: 10px;
         flex-grow: 1;
-        /* 👈 AÑADE ESTO: Permite posicionar el popover relativo a este div */
         position: relative;
     }
 
-    /* Botón de Añadir (FAB) - MODIFICADO */
+    .fecha-texto {
+        font-size: 1.2rem;
+        font-weight: 600;
+        min-width: 180px;
+        text-align: center;
+    }
+
     .add-task-btn {
         width: 40px;
         height: 40px;
@@ -928,52 +624,28 @@
     .calendar-btn {
         background: none;
         border: none;
-        font-size: 1.25rem;
+        font-size: 1.5rem;
         cursor: pointer;
     }
 
-    .fecha-texto {
-        font-size: 1.2rem;
-        font-weight: 600;
-        min-width: 180px;
-        text-align: center;
-    }
-
-    /* Contenedor principal para el botón y el modal. ¡CLAVE: position: relative! */
     .calendar-wrapper {
         position: relative;
-        display: inline-block; /* Para que el div no ocupe todo el ancho */
+        display: inline-block;
     }
 
-    /* El botón del calendario */
-    .calendar-btn {
-        /* (Manten los estilos de tu botón aquí: padding, border, etc.) */
-        font-size: 1.5rem; /* Ejemplo para el emoji */
-        padding: 8px;
-        cursor: pointer;
-        border: none;
-        background: transparent;
-    }
-
-    /* CALENDARIO - HECHO MÁS PEQUEÑO Y COLOCADO AL LADO */
     .modal-popover {
-        /* POSICIONAMIENTO CLAVE: Se posiciona absolutamente dentro del .calendar-wrapper */
         position: absolute;
-        top: 0; /* Alinéalo con la parte superior del botón */
-        left: 100%; /* ¡CLAVE! Lo coloca justo a la derecha del botón */
-        /* Estilos de apariencia */
+        top: 0;
+        left: 100%;
         z-index: 1000;
         background: white;
         border: 1px solid #ccc;
         border-radius: 8px;
         padding: 10px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        margin-left: 10px; /* Un pequeño espacio para separar del botón */
-        /* Estilos de tamaño que ya tienes y funcionan bien para ser pequeño */
+        margin-left: 10px;
         width: 250px;
     }
-
-    /* --- El resto de tus estilos del calendario (calendar-header, calendar-grid, etc.) están bien para el diseño compacto --- */
 
     .calendar-header {
         display: flex;
@@ -985,7 +657,7 @@
 
     .calendar-grid {
         display: grid;
-        grid-template-columns: repeat(7, 1fr);
+        grid-template-columns: repeat(7,1fr);
         gap: 3px;
         text-align: center;
         font-size: 0.9em;
@@ -999,11 +671,11 @@
         padding: 5px 3px;
         cursor: pointer;
         border-radius: 4px;
-        transition: background-color 0.2s;
+        transition: 0.2s;
     }
 
         .calendar-day:hover {
-            background-color: #f0f0f0;
+            background: #f0f0f0;
         }
 
     .calendar-other-month {
@@ -1012,10 +684,11 @@
 
     .calendar-today {
         font-weight: bold;
-        background-color: #d1e7ff;
+        background: #d1e7ff;
         color: #0d6efd;
     }
 
+    /* COLORES BLOQUES */
     .verde-menta .block-header {
         background: #B5EAD7;
     }
@@ -1039,48 +712,95 @@
     .rosa-administrativa .block-header {
         background-color: #FFD1DC;
     }
+
+    /* MEDIA QUERIES ---------------- */
+    @@media (max-width:992px) {
+        .modal-content
+
+    {
+        max-width: 700px;
+        height: 95vh;
+        max-height: 95vh;
+    }
+
+    .modal-body-wrapper {
+        flex-direction: column;
+    }
+
+    .form-type-selector {
+        width: 100%;
+        flex-direction: row;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        padding: 1rem 1.5rem;
+        overflow-x: auto;
+        white-space: nowrap;
+        gap: 0.5rem;
+    }
+
+        .form-type-selector button {
+            flex-shrink: 0;
+            padding: 0.6rem 0.8rem;
+        }
+
+    .form-section-wrapper {
+        padding: 1.5rem;
+    }
+
+    .form-section {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .form-group-span-2 {
+        grid-column: auto;
+    }
+
+    .form-group-inline {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .inline-control-group {
+        min-width: 100%;
+    }
+
+    }
 </style>
 
 @code {
-    // FECHA ACTUAL SELECCIONADA
+    // ---- FECHAS Y CALENDARIO ----
     private DateTime FechaSeleccionada { get; set; } = DateTime.Now.Date;
     private DateTime MesActual { get; set; } = DateTime.Now.Date;
-
-    // CALENDARIO
     private bool MostrarModal { get; set; } = false;
     private string[] DiasSemana = { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" };
     private IEnumerable<DateTime> DiasDelCalendario { get; set; } = Enumerable.Empty<DateTime>();
+    private string FechaFormateada => FechaSeleccionada.ToString("dddd, dd MMMM yyyy", new CultureInfo("es-ES"));
 
-    // CATEGORÍAS Y SUBTAREAS
+    // ---- MODAL REUSABLE ----
+    private bool ShowReusableModal { get; set; } = false;
+    private void OpenReusableModal() => ShowReusableModal = true;
+    private void CloseReusableModal() => ShowReusableModal = false;
+
+    // ---- MODELOS ----
     class SubtaskModel
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string Title { get; set; }
         public bool IsDone { get; set; }
         public List<SubtaskModel> Subtasks { get; set; } = new();
-        public bool ShowTable { get; set; } = false;
     }
 
     class CategoryModel
     {
         public string Name { get; set; }
         public List<SubtaskModel> Subtasks { get; set; } = new();
-        public bool IsOpen { get; set; } = true;
         public string ColorClass { get; set; } = "pastel-blue";
-    }
-
-    // Opcional: Manejar el evento cuando se guarda exitosamente
-    private void HandleSaveSuccess()
-    {
-        // Lógica que solo aplica a la página /dia, como recargar una lista
-        Console.WriteLine("Guardado completado en la vista /dia. Recargando datos...");
-        // StateHasChanged(); // Si necesitas recargar algo en esta página
+        public bool IsCollapsed { get; set; } = false;
     }
 
     private List<CategoryModel> MasterCategories = new();
-    List<CategoryModel> Categories { get; set; } = new();
-
-    private string FechaFormateada => FechaSeleccionada.ToString("dddd, dd MMMM yyyy", new CultureInfo("es-ES"));
+    private List<CategoryModel> Categories { get; set; } = new();
 
     protected override void OnInitialized()
     {
@@ -1091,13 +811,14 @@
 
     private void InitializeMasterCategories()
     {
-        // BLOQUES CON SUBTAREAS SIMULADAS
         MasterCategories = new List<CategoryModel>
         {
             new CategoryModel { Name = "Tareas Administrativas", ColorClass= "rosa-administrativa", Subtasks = new List<SubtaskModel>
                 {
-                    new SubtaskModel{ Title = "Seguimiento a control de suscripciones", Subtasks = new List<SubtaskModel>{ new SubtaskModel{ Title="Detalle 1"}, new SubtaskModel{ Title="Detalle 2" } } },
-                    new SubtaskModel{ Title = "Revisión de informes y programas de trabajo." },
+                    new SubtaskModel{ Title = "Me aseguré de que el área y la estación de insumos de TI esté limpia, ordenada y funcional.", Subtasks = new List<SubtaskModel>{ new SubtaskModel{ Title="Detalle 1"}, new SubtaskModel{ Title="Detalle 2" } } },
+                    new SubtaskModel{ Title = "Di seguimiento en tiempo y forma al control de suscripciones de las que es responsable TI." },
+                     new SubtaskModel{ Title = "Di seguimiento a la recepción de facturas de acuerdo con las solicitudes de pago y las entregue a Administración." },
+                     new SubtaskModel{ Title = "Programé las citas inteligentemente y comunique al área y/o responsable del trabajo. " },
                 }
             },
             new CategoryModel { Name = "Tareas Operativas",  ColorClass= "verde-menta" , Subtasks = new List<SubtaskModel>
@@ -1105,17 +826,21 @@
                     new SubtaskModel{ Title = "Planificar semana" },
                     new SubtaskModel{ Title = "Reunión equipo" },
                     new SubtaskModel{ Title = "Entregar reporte semanal" },
+                    
                 }
             },
             new CategoryModel { Name = "Órdenes de Trabajo", ColorClass= "naranja-melocoton", Subtasks = new List<SubtaskModel>
                 {
-                    new SubtaskModel{ Title = "ORD-13683" }
+                    new SubtaskModel{ Title = "ORD-13683" },
+                    new SubtaskModel{ Title = "ORD-13503" },
+                    new SubtaskModel{ Title = "ORD-13296" }
                 }
             },
             new CategoryModel { Name = "Autoevaluación", ColorClass= "azul-lavanda", Subtasks = new List<SubtaskModel>
                 {
-                    new SubtaskModel{ Title = "Revisión de limpieza y orden del área de TI" },
-                    new SubtaskModel{ Title = "Validación de vales de papelería" }
+                    new SubtaskModel{ Title = "Me aseguré de que el área y la estación de insumos de TI esté limpia, ordenada y funcional." },
+                    new SubtaskModel{ Title = "Di seguimiento en tiempo y forma al control de suscripciones de las que es responsable TI." },
+                    new SubtaskModel{ Title = "Elaboré y compartí al área de Administración las solicitudes de pago del activo fijo de las que es responsable TI." }
                 }
             },
         };
@@ -1123,79 +848,42 @@
 
     private void CargarTareasPorFecha()
     {
-        // Simulación: si sábado o día 15, sin tareas
-        if (FechaSeleccionada.DayOfWeek == DayOfWeek.Saturday || FechaSeleccionada.Day == 15)
+        Categories = MasterCategories.Select(c => new CategoryModel
         {
-            Categories = new List<CategoryModel>();
-        }
-        else
-        {
-            Categories = MasterCategories.Select(c => new CategoryModel
+            Name = c.Name,
+            ColorClass = c.ColorClass,
+            Subtasks = c.Subtasks.Select(st => new SubtaskModel
             {
-                Name = c.Name,
-                ColorClass = c.ColorClass,
-                IsOpen = c.IsOpen,
-                Subtasks = c.Subtasks.Select(st => new SubtaskModel
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Title = st.Title,
-                    IsDone = st.IsDone,
-                    ShowTable = st.ShowTable,
-                    Subtasks = st.Subtasks.ToList()
-                }).ToList()
-            }).ToList();
-        }
+                Id = Guid.NewGuid().ToString(),
+                Title = st.Title,
+                IsDone = st.IsDone,
+                Subtasks = st.Subtasks.Select(s => new SubtaskModel { Title = s.Title, IsDone = s.IsDone }).ToList()
+            }).ToList()
+        }).ToList();
     }
 
-    // NAVEGACIÓN DÍAS
-    private void DiaAnterior()
-    {
-        FechaSeleccionada = FechaSeleccionada.AddDays(-1);
-        if (FechaSeleccionada.DayOfWeek == DayOfWeek.Sunday)
-            FechaSeleccionada = FechaSeleccionada.AddDays(-1);
-        MesActual = FechaSeleccionada;
-        GenerarDiasCalendario();
-        CargarTareasPorFecha();
-    }
-
-    private void DiaSiguiente()
-    {
-        FechaSeleccionada = FechaSeleccionada.AddDays(1);
-        if (FechaSeleccionada.DayOfWeek == DayOfWeek.Sunday)
-            FechaSeleccionada = FechaSeleccionada.AddDays(1);
-        MesActual = FechaSeleccionada;
-        GenerarDiasCalendario();
-        CargarTareasPorFecha();
-    }
-
-    // CALENDARIO
+    private void DiaAnterior() { FechaSeleccionada = FechaSeleccionada.AddDays(-1); CargarTareasPorFecha(); GenerarDiasCalendario(); }
+    private void DiaSiguiente() { FechaSeleccionada = FechaSeleccionada.AddDays(1); CargarTareasPorFecha(); GenerarDiasCalendario(); }
     private void AbrirCalendario() => MostrarModal = true;
     private void CerrarCalendario() => MostrarModal = false;
-
     private void MesAnterior() { MesActual = MesActual.AddMonths(-1); GenerarDiasCalendario(); }
     private void MesSiguiente() { MesActual = MesActual.AddMonths(1); GenerarDiasCalendario(); }
-
-    private void SeleccionarFecha(DateTime nuevaFecha)
-    {
-        FechaSeleccionada = nuevaFecha.Date;
-        CerrarCalendario();
-        CargarTareasPorFecha();
-    }
-
+    private void SeleccionarFecha(DateTime nuevaFecha) { FechaSeleccionada = nuevaFecha; CerrarCalendario(); CargarTareasPorFecha(); }
     private void GenerarDiasCalendario()
     {
         var primerDiaDelMes = new DateTime(MesActual.Year, MesActual.Month, 1);
-        var offset = (int)primerDiaDelMes.DayOfWeek - (int)DayOfWeek.Monday;
-        if (offset < 0) offset += 7;
-        var diaInicio = primerDiaDelMes.AddDays(-offset);
-        var dias = new List<DateTime>();
-        for (int i = 0; i < 42; i++) dias.Add(diaInicio.AddDays(i));
-        DiasDelCalendario = dias;
+        int offset = ((int)primerDiaDelMes.DayOfWeek + 6) % 7;
+        DiasDelCalendario = Enumerable.Range(0, 42).Select(i => primerDiaDelMes.AddDays(i - offset));
     }
 
-    // FUNCIONES DE TOGGLE
-    void Toggle(CategoryModel cat) => cat.IsOpen = !cat.IsOpen;
-    void ToggleSubtask(CategoryModel cat, SubtaskModel st) => st.IsDone = !st.IsDone;
+    // ---- TAREAS ----
+    void ToggleSubtask(CategoryModel cat, SubtaskModel st)
+    {
+        st.IsDone = !st.IsDone;
+        if (st.Subtasks != null && st.Subtasks.Any())
+            st.Subtasks.ForEach(s2 => s2.IsDone = st.IsDone);
+    }
+
     void ToggleInnerSubtask(CategoryModel cat, SubtaskModel parent, SubtaskModel inner)
     {
         inner.IsDone = !inner.IsDone;
@@ -1204,18 +892,18 @@
 
     bool AllCompleted(CategoryModel cat)
     {
-        return cat.Subtasks != null && cat.Subtasks.All(st => st.IsDone && (st.Subtasks == null || st.Subtasks.All(s2 => s2.IsDone)));
+        return cat.Subtasks.All(st => st.IsDone && (st.Subtasks == null || st.Subtasks.All(s2 => s2.IsDone)));
     }
 
     int RemainingCount(CategoryModel cat)
     {
-        int total = 0;
+        int count = 0;
         foreach (var st in cat.Subtasks)
         {
-            if (!st.IsDone) total++;
-            if (st.Subtasks != null) total += st.Subtasks.Count(s => !s.IsDone);
+            if (!st.IsDone) count++;
+            if (st.Subtasks != null) count += st.Subtasks.Count(s => !s.IsDone);
         }
-        return total;
+        return count;
     }
 
     void MarkAll(CategoryModel cat, bool done)
@@ -1223,54 +911,12 @@
         foreach (var st in cat.Subtasks)
         {
             st.IsDone = done;
-            if (st.Subtasks != null)
-                foreach (var s2 in st.Subtasks) s2.IsDone = done;
-        }
-    }
-    // modal
-    public bool ShowModal { get; set; } = false;
-
-    public enum FormTypes { Evento, Tarea, Administrativa }
-    public FormTypes FormType { get; set; } = FormTypes.Administrativa;
-
-    private string newSubtask = string.Empty;
-    private List<string> subtasks = new List<string>();
-
-    public void OpenModal() => ShowModal = true;
-    public void CloseModal() => ShowModal = false;
-
-    public void ir()
-    {
-        navigate.NavigateTo("/calendar");
-        CloseModal();
-    }
-
-    private void SetFormType(FormTypes type)
-    {
-        FormType = type;
-        if (type != FormTypes.Tarea)
-        {
-            subtasks.Clear(); // limpiar subtareas si no es tarea
+            if (st.Subtasks != null) st.Subtasks.ForEach(s2 => s2.IsDone = done);
         }
     }
 
-    private void AddSubtask()
+    void ToggleCollapse(CategoryModel cat)
     {
-        if (!string.IsNullOrWhiteSpace(newSubtask))
-        {
-            subtasks.Add(newSubtask.Trim());
-            newSubtask = string.Empty;
-        }
+        cat.IsCollapsed = !cat.IsCollapsed;
     }
-
-    private void AddSubtaskOnEnter(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter")
-        {
-            AddSubtask();
-        }
-    }
-
-    private void RemoveSubtask(string taskToRemove) => subtasks.Remove(taskToRemove);
-}
 }

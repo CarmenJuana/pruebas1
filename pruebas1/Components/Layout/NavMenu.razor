@@ -20,7 +20,7 @@
                     <button class="subnav-btn" @onclick="@plan">
                          Servicio al cliente
                     </button>
-                    <button class="subnav-btn" @onclick="@mes">
+                    <button class="subnav-btn" @onclick="@autoevaluacion">
                         Autoevaluación
                     </button>
                 </div>
@@ -138,6 +138,10 @@
     private void plan()
     {
         navigate.NavigateTo("/plantrabajo");
+    }
+    private void autoevaluacion()
+    {
+        navigate.NavigateTo("/autoevaluacion");
     }
     /*modaal de agregar*/
     public bool ShowModal { get; set; } = false;
