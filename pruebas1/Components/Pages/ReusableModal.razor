@@ -15,7 +15,7 @@
 <script src="/js/alerts.js"></script>
 
 <div class="btn-container">
-    <button class="btn-floating" @onclick="@OpenModal">➕ Crear Nuevo</button>
+    <button class="btn-floating" @onclick="@OpenModal">➕Crear Nuevo</button>
 </div>
 
 
@@ -33,11 +33,10 @@
             <!-- Body -->
             <div class="reusable-modal-body-wrapper">
 
-                <!-- Selector de tipo -->
+                <!-- Selector de tipo: QUITÉ Tarea Operativa -->
                 <div class="form-type-selector-horizontal">
-                    <button @onclick="() => SetFormType(FormTypes.Tarea)" class="@(FormType == FormTypes.Tarea ? "active" : "")">✅ Tarea Operativa</button>
                     <button @onclick="() => SetFormType(FormTypes.Administrativa)" class="@(FormType == FormTypes.Administrativa ? "active" : "")">💼 Tarea Administrativa</button>
-                    <button @onclick="() => SetFormType(FormTypes.Evento)" class="@(FormType == FormTypes.Evento ? "active" : "")">🗓️ Evento- TA</button>
+                    <button @onclick="() => SetFormType(FormTypes.Evento)" class="@(FormType == FormTypes.Evento ? "active" : "")">🗓️ Evento - TA</button>
                 </div>
 
                 <!-- Formulario -->
@@ -138,7 +137,7 @@
                         <textarea class="form-control tall-textarea" placeholder="Escriba los detalles aquí..." @bind="descripcion"></textarea>
                     </div>
 
-                    <!-- Subtareas habilitadas para Tarea y Administrativa -->
+                    <!-- Subtareas habilitadas solo para Administrativa -->
                     <div class="form-group-span-2 @(FormType == FormTypes.Evento ? "disabled-group" : "")">
                         <label>Sub Tareas</label>
                         <div class="input-group">
@@ -168,8 +167,6 @@
         </div>
     </div>
 }
-
-
 @code {
     private List<FrecuenciaRecurrencia> frecuencias = new();
     private List<Prioridad> prioridadesDisponibles = new();
@@ -177,13 +174,13 @@
     private int? selectedPrioridadId;
     private int? selectedFrecuenciaId;
 
-    var culture = new CultureInfo("es-ES");
-    CultureInfo.DefaultThreadCurrentCulture = culture;
-CultureInfo.DefaultThreadCurrentUICulture = culture;
 
     private bool ShowModal { get; set; } = false;
-    public enum FormTypes { Evento, Tarea, Administrativa }
+
+    // Solo dos tipos ahora: Evento y Administrativa
+    public enum FormTypes { Evento, Administrativa }
     public FormTypes FormType { get; set; } = FormTypes.Administrativa;
+
     private string newSubtask = string.Empty;
     private List<string> subtasks = new();
     public bool showOtherLocationInput { get; set; } = false;
@@ -240,12 +237,15 @@ CultureInfo.DefaultThreadCurrentUICulture = culture;
             return;
         }
 
+        // Si es Evento, lo guardamos dentro de Tareas Administrativas
+        var tipoParaPadre = "Administrativa"; // siempre "Administrativa" para que el padre lo ponga en esa categoría
         var nuevaTarea = new TareaCreada
         {
-            Tipo = FormType.ToString(),
+            Tipo = tipoParaPadre,
             Titulo = titulo,
             Descripcion = descripcion,
-            Subtareas = subtasks.ToList()
+            Subtareas = FormType == FormTypes.Evento ? new List<string>() : subtasks.ToList(),
+            IsEvento = FormType == FormTypes.Evento
         };
 
         await OnSave.InvokeAsync(nuevaTarea);
@@ -253,7 +253,7 @@ CultureInfo.DefaultThreadCurrentUICulture = culture;
         await JSRuntime.InvokeVoidAsync("Swal.fire", new
         {
             icon = "success",
-            title = $"{FormType} creada exitosamente 🎉",
+            title = $"{(FormType == FormTypes.Evento ? "Evento" : "Tarea administrativa")} creada exitosamente 🎉",
             showConfirmButton = false,
             timer = 1800
         });
@@ -304,10 +304,11 @@ CultureInfo.DefaultThreadCurrentUICulture = culture;
     // Modelo que enviará al padre
     public class TareaCreada
     {
-        public string Tipo { get; set; }
+        public string Tipo { get; set; } // siempre "Administrativa" (para que se guarde en esa categoría)
         public string Titulo { get; set; }
         public string Descripcion { get; set; }
         public List<string> Subtareas { get; set; } = new();
+        public bool IsEvento { get; set; } = false; // para que el padre distinga si lo que llegó es un evento
     }
 
     protected override async Task OnInitializedAsync()
@@ -321,12 +322,7 @@ CultureInfo.DefaultThreadCurrentUICulture = culture;
         Console.WriteLine($"Frecuencias: {frecuencias.Count}");
         foreach (var f in frecuencias) Console.WriteLine(f.Nombre);
     }
-
-
 }
-
-
-
 <style>
     .btn-container {
     display: flex;
@@ -335,9 +331,7 @@ CultureInfo.DefaultThreadCurrentUICulture = culture;
 }
     /* Botón flotante */
     .btn-floating {
-
         margin: 10px 2% 20px 0;
-        background: linear-gradient(90deg, #155d2b, #062b35); /* tonos más oscuros */
         color: #fff;
         border: none;
         border-radius: 50px;

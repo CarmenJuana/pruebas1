@@ -3,11 +3,10 @@
 @using System.Globalization
 @inject NavigationManager navigate
 @using Microsoft.AspNetCore.Components.Web
-
+@using pruebas1.Entidades;
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
 
 <div class="agenda-container">
     <!-- BARRA SUPERIOR CON FECHA Y BOTONES DE NAVEGACIÓN -->
@@ -18,10 +17,8 @@
             <button class="calendar-btn" @onclick="DiaSiguiente"><i class="bi bi-arrow-right-circle"></i></button>
 
             <div class="calendar-wrapper">
-                <button class="calendar-btn" @onclick="AbrirCalendario">
-                    📅 
-                </button>
-                
+                <button class="calendar-btn" @onclick="AbrirCalendario">📅</button>
+
                 @if (MostrarModal)
                 {
                     <div class="modal-popover" @onclick:stopPropagation="true">
@@ -51,12 +48,96 @@
                     </div>
                 }
             </div>
-            <div class="modal-button-container"> <ReusableModal OnSave="AgregarTarea" /> </div>
+         
+        </div>
+        <div class="modal-button-container"> <ReusableModal OnSave="AgregarTarea" /> </div>
+    </div>
+
+    <br />
+
+    <!-- BLOQUE: ÓRDENES DE TRABAJO (reemplaza solo el contenido interno del bloque existente) -->
+    <div class="card block-card naranja-melocoton">
+        <div class="block-header">
+            <div class="header-left">
+                <h3 class="categoria-titulo">🧾 Órdenes de Trabajo</h3>
+            </div>
+            <div class="header-right">
+                <!-- mantenemos el estilo del header de tus bloques -->
+                <span class="badge pendiente">@OrdenesParaMostrar.Count() orden(es)</span>
+            </div>
+        </div>
+
+        <div class="card-body block-body">
+            <div class="ordenes-workboard">
+                @if (OrdenesParaMostrar != null && OrdenesParaMostrar.Any())
+                {
+                    <div class="columns-container">
+                        <!-- Columna 1: Normales (gris suave) -->
+                        <div class="column column-normal">
+                            @foreach (var ot in OrdenesParaMostrar.Where(o => o.Status == OrdenStatus.Normal).OrderBy(o => o.FechaConclusion))
+                            {
+                                <div class="ot-card">
+                                    <div class="ot-left">
+                                        <div class="ot-number">@ot.Numero</div>
+                                        <div class="ot-date">@ot.FechaConclusion.ToString("dd/MM/yyyy")</div>
+                                    </div>
+                                    <div class="ot-right">
+                                        <button class="icon-eye" title="Ver orden" @onclick="() => OpenOrderModal(ot)"><i class="bi bi-eye-fill"></i></button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Columna 2: Próximas a vencer (amarillo suave) -->
+                        <div class="column column-soon">
+                            @foreach (var ot in OrdenesParaMostrar.Where(o => o.Status == OrdenStatus.Próxima).OrderBy(o => o.FechaConclusion))
+                            {
+                                <div class="ot-card ot-soon">
+                                    <div class="ot-left">
+                                        <div class="ot-number">@ot.Numero</div>
+                                        <div class="ot-date">@ot.FechaConclusion.ToString("dd/MM/yyyy")</div>
+                                    </div>
+                                    <div class="ot-middle">
+                                        <span class="badge badge-soon">Próx.</span>
+                                    </div>
+                                    <div class="ot-right">
+                                        <button class="icon-eye" title="Ver orden" @onclick="() => OpenOrderModal(ot)"><i class="bi bi-eye-fill"></i></button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Columna 3: Vencidas (rojo suave) -->
+                        <div class="column column-expired">
+                            @foreach (var ot in OrdenesParaMostrar.Where(o => o.Status == OrdenStatus.Vencida).OrderBy(o => o.FechaConclusion))
+                            {
+                                <div class="ot-card ot-expired">
+                                    <div class="ot-left">
+                                        <div class="ot-number">@ot.Numero</div>
+                                        <div class="ot-date">@ot.FechaConclusion.ToString("dd/MM/yyyy")</div>
+                                    </div>
+                                    <div class="ot-middle">
+                                        <span class="badge badge-expired">VENCIDA</span>
+                                    </div>
+                                    <div class="ot-right">
+                                        <button class="icon-eye" title="Ver orden" @onclick="() => OpenOrderModal(ot)"><i class="bi bi-eye-fill"></i></button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="no-ordenes">No hay órdenes para mostrar</div>   
+                }
+            </div>
         </div>
     </div>
 
     <br />
-    <!-- MENSAJES SI NO HAY ACTIVIDADES -->
+
+    <!-- Resto de bloques (se mantienen igual que antes) -->
     @if (FechaSeleccionada.DayOfWeek == DayOfWeek.Sunday)
     {
         <div class="col-12 text-center">
@@ -65,7 +146,7 @@
             </div>
         </div>
     }
-    else if (!Categories.Any())
+    else if (!Categories.Any(c => c.Name != "Órdenes de Trabajo"))
     {
         <div class="col-12 text-center">
             <div class="alert alert-info shadow-sm">
@@ -75,10 +156,8 @@
     }
     else
     {
-        <!-- BLOQUES DE CATEGORÍAS -->
-        @foreach (var cat in Categories)
+        @foreach (var cat in Categories.Where(c => c.Name != "Órdenes de Trabajo"))
         {
-
             <div class="card block-card @cat.ColorClass">
                 <div class="block-header" @onclick="() => ToggleCollapse(cat)">
                     <div class="header-left">
@@ -103,11 +182,9 @@
                 {
                     <div class="card-body block-body @(cat.IsCollapsed ? "collapsed" : "")">
                         <ul class="subtask-list">
-
                             @foreach (var st in cat.Subtasks)
                             {
                                 <li class="subtask-item">
-
                                     <div class="subtask-label @(st.IsDone && cat.Name != "Autoevaluación" ? "done" : "")">
                                         @if (cat.Name != "Órdenes de Trabajo")
                                         {
@@ -118,31 +195,28 @@
                                         {
                                             <small class="done-text">Hecho</small>
                                         }
-
-                                        @* BOTONES FIJOS A LA DERECHA *@
-                                        @if (cat.Name == "Tareas Administrativas" || cat.Name == "Tareas Operativas")
+                                        @if (cat.Name == "Tareas Administrativas")
                                         {
                                             <div class="subtask-actions">
+                                                <button class="icon-btn edit" title="Modificar fecha" @onclick="OpenModificarModal">
+                                                    <i class="bi bi-calendar"></i>
+                                                </button>
                                                 <button class="icon-btn edit" title="Editar" @onclick="() => OpenEditModal(cat, st)">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
-
                                                 <button class="icon-btn delete" title="Eliminar" @onclick="() => DeleteSubtask(cat, st)">
                                                     <i class="bi bi-trash3"></i>
                                                 </button>
 
                                             </div>
                                         }
-
                                     </div>
 
-                                    @* Subtareas internas *@
-                                    @if ((cat.Name == "Tareas Administrativas" || cat.Name == "Tareas Operativas" || cat.Name == "Servicio a Cliente") && st.Subtasks.Any())
+                                    @if ((cat.Name == "Tareas Administrativas" || cat.Name == "Servicio a Cliente") && st.Subtasks.Any())
                                     {
                                         <div class="table-wrapper">
                                             @if (cat.Name == "Servicio a Cliente")
                                             {
-                                                <!-- Tabla simplificada solo con Actividad y Hecho -->
                                                 <table class="subtask-table">
                                                     <thead>
                                                         <tr>
@@ -165,51 +239,364 @@
                                             }
                                             else
                                             {
-                                                <!-- Subtareas como lista visual, sin tabla -->
                                                 <ul class="subtask-list">
                                                     @foreach (var s2 in st.Subtasks)
                                                     {
                                                         <li class="subtask-item">
                                                             <div class="subtask-label @(s2.IsDone ? "done" : "")">
-
-                                                                <!-- Checkbox -->
                                                                 <input type="checkbox" checked="@s2.IsDone" @onchange="(e) => ToggleInnerSubtask(cat, st, s2)" />
-
-                                                                <!-- Descripción -->
                                                                 <span class="subtask-text">@($"Objetivo de {s2.Title}")</span>
-
-                                                                <!-- Botones -->
                                                                 <div class="subtask-actions">
+                                                                    <button class="icon-btn edit" title="Modificar fecha" @onclick="OpenModificarModal">
+                                                                        <i class="bi bi-calendar"></i>
+                                                                    </button>
                                                                     <button class="icon-btn edit" title="Editar" @onclick="() => OpenEditInnerModal(cat, st, s2)">
                                                                         <i class="bi bi-pencil"></i>
                                                                     </button>
                                                                     <button class="icon-btn delete" title="Eliminar" @onclick="() => DeleteInnerSubtask(cat, st, s2)">
-                                                                        <i class="bi bi-trash"></i>
+                                                                        <i class="bi bi-trash3"></i>
                                                                     </button>
                                                                 </div>
-
                                                             </div>
                                                         </li>
                                                     }
                                                 </ul>
-
                                             }
                                         </div>
                                     }
-
                                 </li>
                             }
                         </ul>
-
-                        
                     </div>
                 }
             </div>
         }
     }
 </div>
+@if (ShowModificarFechaModal)
+{
+    <div class="modal-backdrop" @onclick="BackdropClick" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);display:flex;justify-content:center;align-items:center;">
+        <div class="modal-container" @onclick:stopPropagation>
+            <h3>Modificar Fecha</h3>
+
+            @if (HistorialCambios.Any())
+            {
+                <h5>Historial de Cambios</h5>
+                <table class="table table-sm" style="width:100%;margin-bottom:12px;">
+                    <thead>
+                        <tr><th>Fecha Anterior</th><th>Nueva Fecha</th><th>Motivo</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var h in HistorialCambios)
+                        {
+                            <tr>
+                                <td>@h.FechaAnterior.ToString("dd/MM/yyyy")</td>
+                                <td>@h.FechaNueva.ToString("dd/MM/yyyy")</td>
+                                <td>@h.Motivo</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+
+            <div style="margin-bottom:10px;">
+                <label>Fecha Actual:</label>
+                <input type="text" class="form-control" value="@FechaActual.ToString("dd/MM/yyyy")" readonly />
+            </div>
+
+            <div style="margin-bottom:10px;">
+                <label>Nueva Fecha:</label>
+                <input type="date" class="form-control" @bind="NuevaFecha" />
+            </div>
+
+            <div style="margin-bottom:10px;">
+                <label>Motivo:</label>
+                <textarea class="form-control" rows="2" @bind="Motivo"></textarea>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+                <button class="btn btn-success" @onclick="GuardarCambioFecha">Guardar</button>
+                <button class="btn btn-secondary" @onclick="CerrarModificarModal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+}
+<!-- MODAL DE VISUALIZACIÓN DE ORDEN (EXTRA GRANDE) -->
+@if (ShowOrderModal && SelectedOrden != null)
+{
+    <div class="modal-container visible" @onclick="CloseOrderModal">
+        <div class="modal-content" @onclick:stopPropagation="true" style="max-width:1200px; width:95%; height:92vh;">
+            <div class="modal-header" style="background:#2b2b3a; color:#fff;">
+                <h2 class="modal-title">Orden - @SelectedOrden.Numero</h2>
+                <span class="close-button" @onclick="CloseOrderModal">&times;</span>
+            </div>
+
+            <div class="modal-body-wrapper">
+                <div class="form-section-wrapper">
+                    <div class="form-section">
+                        <div>
+                            <label class="section-label">Número de orden</label>
+                            <div>@SelectedOrden.Numero</div>
+                        </div>
+
+                        <div>
+                            <label class="section-label">Fecha de solicitud</label>
+                            <div>@(SelectedOrden.FechaSolicitud?.ToString("dd/MM/yyyy") ?? "-")</div>
+                        </div>
+
+                        <div>
+                            <label class="section-label">Autor</label>
+                            <div>@(SelectedOrden.Autor ?? "-")</div>
+                        </div>
+
+                        <div>
+                            <label class="section-label">Nombre / Razón social</label>
+                            <div>@(SelectedOrden.Cliente ?? "-")</div>
+                        </div>
+
+                        <div class="form-group-span-2">
+                            <label class="section-label">Objetivo</label>
+                            <div>@(SelectedOrden.Objetivo ?? "-")</div>
+                        </div>
+
+                        <div class="form-group-span-2">
+                            <label class="section-label">Objetivos de otros</label>
+                            <div>@(SelectedOrden.ObjetivosOtros ?? "-")</div>
+                        </div>
+
+                        <div>
+                            <label class="section-label">Fecha programada de conclusión</label>
+                            <div>@SelectedOrden.FechaConclusion.ToString("dd/MM/yyyy")</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:18px;" class="form-group-span-2">
+                        <label class="section-label">Tareas</label>
+
+                        <!-- Tabla minimalista estilo A (sin líneas) -->
+                        <div class="tasks-table-minimal">
+                            <div class="tasks-row tasks-header">
+                                <div class="col-name">Nombre de la tarea</div>
+                                <div class="col-desc">Descripción</div>
+                                <div class="col-adv">Avance</div>
+                            </div>
+
+                            @foreach (var t in SelectedOrden.Subtasks)
+                            {
+                                <div class="tasks-row">
+                                    <div class="col-name">@t.Title</div>
+                                    <div class="col-desc">@(!string.IsNullOrEmpty(t.Description) ? t.Description : "-")</div>
+                                    <div class="col-adv">@($"{t.ProgressPercent}%")</div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn small" @onclick="CloseOrderModal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+}
+
 
 <style>
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-container {
+        background: white;
+        padding: 20px;
+        width: 420px;
+        border-radius: 8px;
+    }
+
+    .form-group {
+        margin-bottom: 12px;
+    }
+
+    .modal-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    /* --- Reglas agregadas para el bloque de Órdenes de Trabajo y modal (estéticas) --- */
+    .ordenes-workboard {
+        width: 100%;
+        max-width: 1700px;
+        margin: 0 auto;
+    }
+
+    .columns-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 18px;
+    }
+
+    .column {
+        background: transparent;
+        border-radius: 12px;
+        padding: 12px;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    /* Column accents but without explicit titles */
+    .column-normal {
+    }
+
+    .column-soon {
+    }
+
+    .column-expired {
+    }
+
+    .ot-card {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+        border: 1px solid rgba(0,0,0,0.04);
+    }
+
+    .ot-left {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .ot-number {
+        font-weight: 700;
+        font-size: 1rem;
+        color: #1f2d3d;
+    }
+
+    .ot-date {
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+
+    .ot-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .icon-eye {
+        background: none;
+        border: none;
+        font-size: 1.15rem;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 8px;
+        transition: all .15s;
+        color: #1f2d3d;
+    }
+
+        .icon-eye:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+        }
+
+    /* Badges */
+    .badge {
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.75rem;
+    }
+
+    .badge-soon {
+        background: rgba(250,204,21,0.1);
+        color: #92400e;
+    }
+
+    .badge-expired {
+        background: rgba(220,53,69,0.08);
+        color: #c5303a;
+    }
+
+    /* Accents for types (subtle strip on the left of column cards) */
+    .column-normal .ot-card {
+        border-left: 6px solid rgba(59,130,246,0.06);
+    }
+
+    .column-soon .ot-card {
+        border-left: 6px solid rgba(250,204,21,0.4);
+    }
+
+    .column-expired .ot-card {
+        border-left: 6px solid rgba(220,53,69,0.4);
+    }
+
+    .ot-soon {
+        background: linear-gradient(180deg, rgba(255,250,230,0.6), #fff);
+    }
+
+    .ot-expired {
+        background: linear-gradient(180deg, rgba(255,235,238,0.6), #fff);
+    }
+
+    /* Tasks table minimal (style A) */
+    .tasks-table-minimal {
+        margin-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .tasks-row {
+        display: grid;
+        grid-template-columns: 2fr 4fr 1fr;
+        gap: 12px;
+        align-items: center;
+        padding: 8px 6px;
+        border-radius: 8px;
+        background: transparent;
+    }
+
+    .tasks-header {
+        font-weight: 700;
+        color: #374151;
+        opacity: 0.9;
+    }
+
+    .col-name {
+        font-size: 0.95rem;
+        color: #111827;
+    }
+
+    .col-desc {
+        font-size: 0.9rem;
+        color: #6b7280;
+    }
+
+    .col-adv {
+        font-weight: 700;
+        text-align: right;
+        color: #111827;
+    }
+
     /* ---------------- VARIABLES DE COLOR ---------------- */
     .modal-button-container {
         display: flex;
@@ -222,7 +609,7 @@
             color: white;
             border: none;
             border-radius: 6px;
-            padding: 6px 14px; /* tamaño más pequeño */
+            padding: 20px 20px; /* tamaño más pequeño */
             font-size: 14px;
             cursor: pointer;
             box-shadow: 0 2px 5px rgba(0,0,0,0.15);
@@ -926,7 +1313,7 @@
     }
 </style>
 
-@code {
+@code{
     // ---- FECHAS Y CALENDARIO ----
     private DateTime FechaSeleccionada { get; set; } = DateTime.Now.Date;
     private DateTime MesActual { get; set; } = DateTime.Now.Date;
@@ -935,32 +1322,145 @@
     private IEnumerable<DateTime> DiasDelCalendario { get; set; } = Enumerable.Empty<DateTime>();
     private string FechaFormateada => FechaSeleccionada.ToString("dddd, dd MMMM yyyy", new CultureInfo("es-ES"));
 
-    private string titulo = string.Empty;
-    private string descripcion = string.Empty;
-    private List<string> subtasks = new List<string>();
+    // ---- MODELOS PARA EL BLOQUE DE ÓRDENES (D1) ----
+    public class TareaOrdenModel
+    {
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public int ProgressPercent { get; set; } = 0;
+    }
 
-    private CategoryModel editCategory;
-    private SubtaskModel editSubtask;
-    private SubtaskModel editInnerSubtask;
-    private bool ShowModal = false;
+    public class OrdenTrabajoModel
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Numero { get; set; }
+        public DateTime FechaConclusion { get; set; } = DateTime.Today;
+        public DateTime? FechaSolicitud { get; set; }
+        public string Autor { get; set; }
+        public string Cliente { get; set; }
+        public string Objetivo { get; set; }
+        public string ObjetivosOtros { get; set; }
+        public List<TareaOrdenModel> Subtasks { get; set; } = new();
+        public OrdenStatus Status { get; set; } = OrdenStatus.Normal;
+    }
 
-    // ---- MODAL REUSABLE ----
-    private bool ShowReusableModal { get; set; } = false;
-    private void OpenReusableModal() => ShowReusableModal = true;
-    private void CloseReusableModal() => ShowReusableModal = false;
+    //inicia DEL MODAL fechasmotivo
 
-    // ---- MODELOS ----
+    // controla apertura del modal
+    private bool ShowModificarFechaModal = false;
+
+    // fechas y motivo
+    private DateTime FechaActual = DateTime.Now;
+    private DateTime NuevaFecha = DateTime.Now;
+    private string Motivo = string.Empty;
+
+    // historial en memoria
+    private List<HistorialFechaCambio> HistorialCambios { get; set; } = new();
+
+    // si el botón llama SIN parámetros
+    private void OpenModificarModal()
+    {
+        // carga de prueba (estática)
+        FechaActual = FechaActual; // ya está inicializada
+        NuevaFecha = FechaActual;
+        ShowModificarFechaModal = true;
+        StateHasChanged();
+    }
+
+    // si el botón llama CON parámetros (sobrecarga)
+    private void OpenModificarModal(object cat, object st)
+    {
+        // Aquí puedes mapear los valores reales cuando sepas el nombre de la propiedad.
+        // Mientras tanto, cargamos valores de prueba:
+        FechaActual = DateTime.Now;   // o extrae del 'st' cuando tenga la propiedad correcta
+        NuevaFecha = FechaActual;
+
+        // Si el objeto 'st' tuviera historial embebido, podrías asignarlo:
+        try
+        {
+            // intento safe de leer una propiedad HistorialFechas si existe (dinámico)
+            var hist = GetPropertyValue(st, "HistorialFechas") as List<HistorialFechaCambio>;
+            if (hist != null) HistorialCambios = hist;
+        }
+        catch { /* ignoramos si no existe */ }
+
+        ShowModificarFechaModal = true;
+        StateHasChanged();
+    }
+
+    private void CerrarModificarModal()
+    {
+        ShowModificarFechaModal = false;
+    }
+
+    private void BackdropClick()
+    {
+        // cerrar si se hace click fuera del modal
+        CerrarModificarModal();
+    }
+
+    private void GuardarCambioFecha()
+    {
+        HistorialCambios.Add(new HistorialFechaCambio
+        {
+            FechaAnterior = FechaActual,
+            FechaNueva = NuevaFecha,
+            Motivo = Motivo ?? string.Empty
+        });
+
+        // Actualiza la "fecha actual" local (prueba)
+        FechaActual = NuevaFecha;
+
+        // Si el modelo real (Item seleccionado) se debe actualizar, ahí pones:
+        // ItemSeleccionado.FechaX = NuevaFecha; y guardas en BD
+        ShowModificarFechaModal = false;
+    }
+
+    // helper dinámico seguro para leer propiedades sin lanzar excepciones si no existen
+    private object? GetPropertyValue(object? obj, string propName)
+    {
+        if (obj == null) return null;
+        try
+        {
+            var prop = obj.GetType().GetProperty(propName);
+            if (prop != null) return prop.GetValue(obj);
+        }
+        catch { }
+        return null;
+    }
+
+    public class HistorialFechaCambio
+    {
+        public DateTime FechaAnterior { get; set; }
+        public DateTime FechaNueva { get; set; }
+        public string Motivo { get; set; } = string.Empty;
+    }
+
+    //TERMINO DEL MODAL 
+      
+
+    void ToggleCollapse(CategoryModel cat)
+    {
+        cat.IsCollapsed = !cat.IsCollapsed;
+    }
+
+    // ---- MODELOS QUE YA TENÍAS (mantengo para compatibilidad) ----
     class SubtaskModel
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string Title { get; set; }
         public bool IsDone { get; set; }
         public List<SubtaskModel> Subtasks { get; set; } = new();
-    }
-    void ToggleCollapse(CategoryModel cat)
-    {
-        cat.IsCollapsed = !cat.IsCollapsed;
-        StateHasChanged(); // fuerza actualización visual
+
+        // Campos opcionales (si se usaran)
+        public DateTime FechaConclusion { get; set; } = DateTime.Now.Date;
+        public DateTime? FechaSolicitud { get; set; } = null;
+        public string Autor { get; set; } = null;
+        public string Cliente { get; set; } = null;
+        public string Objetivo { get; set; } = null;
+        public string ObjetivosOtros { get; set; } = null;
+        public string Description { get; set; } = null;
+        public int ProgressPercent { get; set; } = 0;
     }
 
     class CategoryModel
@@ -969,161 +1469,50 @@
         public List<SubtaskModel> Subtasks { get; set; } = new();
         public string ColorClass { get; set; } = "pastel-blue";
         public bool IsCollapsed { get; set; } = false;
-        public string Icon { get; set; } // <--- Aquí
-    }
-    private void AgregarTarea(ReusableModal.TareaCreada nueva)
-    {
-        var categoria = Categories.FirstOrDefault(c =>
-            (nueva.Tipo == "Tarea" && c.Name == "Tareas Operativas") ||
-            (nueva.Tipo == "Administrativa" && c.Name == "Tareas Administrativas")
-        );
-
-        if (categoria != null)
-        {
-            var nuevaSubtask = new SubtaskModel
-            {
-                Title = nueva.Titulo,
-                IsDone = false,
-                Subtasks = nueva.Subtareas.Select(s => new SubtaskModel { Title = s, IsDone = false }).ToList()
-            };
-
-            categoria.Subtasks.Add(nuevaSubtask);
-        }
-
-        StateHasChanged();
-    }
-    // ---- ACTIVIDADES ----
-    void EditSubtask(CategoryModel cat, SubtaskModel st)
-    {
-        // Aquí puedes abrir tu modal para editar título o subtareas
-        Console.WriteLine($"Editar actividad: {st.Title} en {cat.Name}");
+        public string Icon { get; set; }
     }
 
-    void DeleteSubtask(CategoryModel cat, SubtaskModel st)
-    {
-        cat.Subtasks.Remove(st);
-    }
-
-    // ---- SUBTAREAS ----
-    void EditInnerSubtask(CategoryModel cat, SubtaskModel parent, SubtaskModel inner)
-    {
-        // Aquí también podrías abrir modal para editar
-        Console.WriteLine($"Editar subtarea: {inner.Title} en {parent.Title}");
-    }
-
-    void DeleteInnerSubtask(CategoryModel cat, SubtaskModel parent, SubtaskModel inner)
-    {
-        parent.Subtasks.Remove(inner);
-    }
-    // Enum para tipos de formulario
-    enum FormTypes
-    {
-        Evento,
-        Tarea,
-        Administrativa
-    }
-
-
-    // Campo que controla el tipo de formulario abierto en el modal
-    private FormTypes FormType = FormTypes.Tarea;
-
-    void OpenEditModal(CategoryModel cat, SubtaskModel st)
-    {
-        editCategory = cat;
-        editSubtask = st;
-        editInnerSubtask = null;
-
-        titulo = st.Title;
-        descripcion = "";
-        subtasks = st.Subtasks.Select(s => s.Title).ToList();
-
-        FormType = cat.Name == "Tareas Administrativas" ? FormTypes.Administrativa : FormTypes.Tarea;
-
-        ShowModal = true;
-    }
-
-
-    void OpenEditInnerModal(CategoryModel cat, SubtaskModel parent, SubtaskModel inner)
-    {
-        editCategory = cat;
-        editSubtask = parent;
-        editInnerSubtask = inner;
-
-        titulo = inner.Title;
-        descripcion = ""; // si hay descripción
-        subtasks = inner.Subtasks.Select(s => s.Title).ToList(); // si hay subtareas dentro de la subtarea
-
-        FormType = cat.Name == "Tareas Administrativas" ? FormTypes.Administrativa : FormTypes.Tarea;
-
-        ShowModal = true;
-    }
-
-    // Guardar cambios del modal
-    void CheckSave()
-    {
-        if (editInnerSubtask != null)
-        {
-            editInnerSubtask.Title = titulo;
-            // aquí actualizarías descripción o subtareas si quieres
-        }
-        else if (editSubtask != null)
-        {
-            editSubtask.Title = titulo;
-            // actualizar descripción y subtareas
-            editSubtask.Subtasks = subtasks.Select(s => new SubtaskModel { Title = s }).ToList();
-        }
-
-        // Limpiar variables
-        editCategory = null;
-        editSubtask = null;
-        editInnerSubtask = null;
-        ShowModal = false;
-    }
+    // ---- DATOS / INICIALIZACIÓN ----
     private List<CategoryModel> MasterCategories = new();
     private List<CategoryModel> Categories { get; set; } = new();
+
+    // Lista de órdenes (separada y limpia)
+    private List<OrdenTrabajoModel> OrdenesParaMostrar = new();
 
     protected override void OnInitialized()
     {
         InitializeMasterCategories();
         CargarTareasPorFecha();
         GenerarDiasCalendario();
+        PrepararOrdenesVisuales();
     }
+
     string GetIcon(string title) => title switch
     {
         "Órdenes de Trabajo" => "🧾",
         "Tareas Administrativas" => "🗂️",
-        "Tareas Operativas" => "⚙️",
         "Autoevaluación" => "⭐",
         "Servicio a Cliente" => "🏢",
         _ => "📋"
     };
+
     private void InitializeMasterCategories()
     {
         MasterCategories = new List<CategoryModel>
         {
-
             new CategoryModel { Name = "Tareas Administrativas",ColorClass= "rosa-administrativa", Subtasks = new List<SubtaskModel>
                 {
                     new SubtaskModel{ Title = "Me aseguré de que el área y la estación de insumos de TI esté limpia, ordenada y funcional.", Subtasks = new List<SubtaskModel>{ new SubtaskModel{ Title="Detalle 1"}, new SubtaskModel{ Title="Detalle 2" } } },
                     new SubtaskModel{ Title = "Di seguimiento en tiempo y forma al control de suscripciones de las que es responsable TI." },
-                     new SubtaskModel{ Title = "Di seguimiento a la recepción de facturas de acuerdo con las solicitudes de pago y las entregue a Administración." },
-                     new SubtaskModel{ Title = "Programé las citas inteligentemente y comunique al área y/o responsable del trabajo. " },
+                    new SubtaskModel{ Title = "Di seguimiento a la recepción de facturas de acuerdo con las solicitudes de pago y las entregue a Administración." },
+                    new SubtaskModel{ Title = "Programé las citas inteligentemente y comunique al área y/o responsable del trabajo. " },
                 }
             },
-            new CategoryModel { Name = "Tareas Operativas",   ColorClass= "verde-menta" , Subtasks = new List<SubtaskModel>
-                {
-                    new SubtaskModel{ Title = "Planificar semana" },
-                    new SubtaskModel{ Title = "Reunión equipo" },
-                    new SubtaskModel{ Title = "Entregar reporte semanal" },
-
-                }
-            },
-            new CategoryModel { Name = "Órdenes de Trabajo",  ColorClass= "naranja-melocoton", Subtasks = new List<SubtaskModel>
-                {
-                    new SubtaskModel{ Title = "ORD-13683" },
-                    new SubtaskModel{ Title = "ORD-13503" },
-                    new SubtaskModel{ Title = "ORD-13296" }
-                }
+            // Mantengo la entrada "Órdenes de Trabajo" vacía aquí (lo manejamos con OrdenesParaMostrar)
+            new CategoryModel {
+                Name = "Órdenes de Trabajo",
+                ColorClass= "naranja-melocoton",
+                Subtasks = new List<SubtaskModel>() // no la usamos como fuente principal
             },
             new CategoryModel { Name = "Autoevaluación",ColorClass= "azul-lavanda", Subtasks = new List<SubtaskModel>
                 {
@@ -1139,7 +1528,7 @@
                 }
             },
         };
-        // Asigna el icono automáticamente usando GetIcon(Name)
+
         foreach (var category in MasterCategories)
         {
             category.Icon = GetIcon(category.Name);
@@ -1152,17 +1541,133 @@
         {
             Name = c.Name,
             ColorClass = c.ColorClass,
-            Icon = c.Icon, // <-- importante, copiar el icono
+            Icon = c.Icon,
             Subtasks = c.Subtasks.Select(st => new SubtaskModel
             {
                 Id = Guid.NewGuid().ToString(),
                 Title = st.Title,
                 IsDone = st.IsDone,
-                Subtasks = st.Subtasks.Select(s => new SubtaskModel { Title = s.Title, IsDone = s.IsDone }).ToList()
+                Subtasks = st.Subtasks.Select(s => new SubtaskModel { Title = s.Title, Description = s.Description, ProgressPercent = s.ProgressPercent }).ToList(),
+                FechaConclusion = st.FechaConclusion,
+                FechaSolicitud = st.FechaSolicitud,
+                Autor = st.Autor,
+                Cliente = st.Cliente,
+                Objetivo = st.Objetivo,
+                ObjetivosOtros = st.ObjetivosOtros
             }).ToList()
         }).ToList();
+
+        // Recalcula la lista de órdenes (si las traes desde backend deberías poblarla aquí)
+        PrepararOrdenesVisuales();
     }
 
+    private void PrepararOrdenesVisuales()
+    {
+        // Si tienes backend sustituye este bloque por la carga real.
+        // Aquí creamos ejemplos para que lo veas en funcionamiento
+        OrdenesParaMostrar = new List<OrdenTrabajoModel>
+        {
+            new OrdenTrabajoModel {
+                Numero = "ORD-13537",
+                FechaSolicitud = new DateTime(2025,8,27),
+                Autor = "Nadia Vainey Ramirez Carmona",
+                Cliente = "Grupo Mendez Asesores de Negocios SC",
+                Objetivo = "799 trabajos especiales de tecnologías de la información",
+                ObjetivosOtros = "equis",
+                FechaConclusion = new DateTime(2025,9,17),
+                Subtasks = new List<TareaOrdenModel> {
+                    new TareaOrdenModel { Title = "Entrega del formato de control de inducciones", Description = "Al recibir esta inducción estuvo bien", ProgressPercent = 100 }
+                }
+            },
+            new OrdenTrabajoModel {
+                Numero = "ORD-13683",
+                FechaSolicitud = new DateTime(2025,10,1),
+                Autor = "Laura Gómez",
+                Cliente = "Empresa Demo",
+                Objetivo = "Instalación de red",
+                FechaConclusion = DateTime.Today.AddDays(20),
+                Subtasks = new List<TareaOrdenModel> {
+                    new TareaOrdenModel { Title = "Instalación de switches", Description = "Programado", ProgressPercent = 20 }
+                }
+            },
+            new OrdenTrabajoModel {
+                Numero = "ORD-13296",
+                FechaSolicitud = DateTime.Today.AddDays(2),
+                Autor = "Miguel Ruiz",
+                Cliente = "Comercial Central",
+                Objetivo = "Actualización de software",
+                FechaConclusion = DateTime.Today.AddDays(4),
+                Subtasks = new List<TareaOrdenModel> {
+                    new TareaOrdenModel { Title = "Pruebas en ambiente", Description = "En progreso", ProgressPercent = 50 }
+                }
+            },
+            new OrdenTrabajoModel {
+                Numero = "ORD-13503",
+                FechaSolicitud = new DateTime(2025,9,5),
+                Autor = "Carlos Pérez",
+                Cliente = "Cliente Ejemplo SA",
+                Objetivo = "Mantenimiento de servidores",
+                FechaConclusion = DateTime.Today.AddDays(-3),
+                Subtasks = new List<TareaOrdenModel> {
+                    new TareaOrdenModel { Title = "Revisión de backup", Description = "Backup incompleto", ProgressPercent = 70 }
+                }
+            },
+            // extras para mostrar llenado
+            new OrdenTrabajoModel {
+                Numero = "ORD-14020",
+                FechaConclusion = DateTime.Today.AddDays(40),
+                FechaSolicitud = DateTime.Today.AddDays(-10),
+                Autor = "Sofia Martínez",
+                Cliente = "Empresa Alfa",
+                Objetivo = "Nueva instalación",
+                Subtasks = new List<TareaOrdenModel>{ new TareaOrdenModel{ Title="Preparar infraestructura", Description="Pendiente", ProgressPercent=0 } }
+            },
+            new OrdenTrabajoModel {
+                Numero = "ORD-12100",
+                FechaConclusion = DateTime.Today.AddDays(-10),
+                FechaSolicitud = DateTime.Today.AddDays(-30),
+                Autor = "Luis Torres",
+                Cliente = "Cliente Beta",
+                Objetivo = "Soporte técnico",
+                Subtasks = new List<TareaOrdenModel>{ new TareaOrdenModel{ Title="Atender incidencia", Description="Retrasado", ProgressPercent=40 } }
+            }
+        };
+
+        // Calcula estados
+        var hoy = DateTime.Today;
+        foreach (var o in OrdenesParaMostrar)
+        {
+            if (o.FechaConclusion.Date < hoy) o.Status = OrdenStatus.Vencida;
+            else if ((o.FechaConclusion.Date - hoy).TotalDays <= 5) o.Status = OrdenStatus.Próxima;
+            else o.Status = OrdenStatus.Normal;
+        }
+    }
+
+    // ---- Modal orden ----
+    private bool ShowOrderModal { get; set; } = false;
+    private OrdenTrabajoModel SelectedOrden { get; set; }
+
+    private void OpenOrderModal(OrdenTrabajoModel orden)
+    {
+        SelectedOrden = orden;
+        ShowOrderModal = true;
+        StateHasChanged();
+    }
+    public enum OrdenStatus
+    {
+        Normal,
+        Próxima,
+        Vencida
+    }
+
+
+    private void CloseOrderModal()
+    {
+        SelectedOrden = null;
+        ShowOrderModal = false;
+    }
+
+    // ---- Calendario helpers ----
     private void DiaAnterior() { FechaSeleccionada = FechaSeleccionada.AddDays(-1); CargarTareasPorFecha(); GenerarDiasCalendario(); }
     private void DiaSiguiente() { FechaSeleccionada = FechaSeleccionada.AddDays(1); CargarTareasPorFecha(); GenerarDiasCalendario(); }
     private void AbrirCalendario() => MostrarModal = true;
@@ -1177,7 +1682,7 @@
         DiasDelCalendario = Enumerable.Range(0, 42).Select(i => primerDiaDelMes.AddDays(i - offset));
     }
 
-    // ---- TAREAS ----
+    // ---- TAREAS (mantenidas) ----
     void ToggleSubtask(CategoryModel cat, SubtaskModel st)
     {
         st.IsDone = !st.IsDone;
@@ -1216,5 +1721,59 @@
         }
     }
 
-   
+    // ---- Edit / Delete (mantengo tus handlers) ----
+    void EditSubtask(CategoryModel cat, SubtaskModel st)
+    {
+        Console.WriteLine($"Editar actividad: {st.Title} en {cat.Name}");
+    }
+
+    void DeleteSubtask(CategoryModel cat, SubtaskModel st)
+    {
+        cat.Subtasks.Remove(st);
+        CargarTareasPorFecha();
+    }
+
+    void EditInnerSubtask(CategoryModel cat, SubtaskModel parent, SubtaskModel inner)
+    {
+        Console.WriteLine($"Editar subtarea: {inner.Title} en {parent.Title}");
+    }
+
+    void DeleteInnerSubtask(CategoryModel cat, SubtaskModel parent, SubtaskModel inner)
+    {
+        parent.Subtasks.Remove(inner);
+    }
+
+    void OpenEditModal(CategoryModel cat, SubtaskModel st)
+    {
+        // abrir modal de edición si se requiere
+    }
+
+    void OpenEditInnerModal(CategoryModel cat, SubtaskModel parent, SubtaskModel inner)
+    {
+        // abrir modal de edición si se requiere
+    }
+
+    void CheckSave()
+    {
+        // guardar cambios (si implementas edición)
+    }
+
+    private void AgregarTarea(ReusableModal.TareaCreada nueva)
+    {
+        var categoria = Categories.FirstOrDefault(c => (nueva.Tipo == "Administrativa" && c.Name == "Tareas Administrativas"));
+
+        if (categoria != null)
+        {
+            var nuevaSubtask = new SubtaskModel
+            {
+                Title = nueva.Titulo,
+                IsDone = false,
+                Subtasks = nueva.Subtareas.Select(s => new SubtaskModel { Title = s, IsDone = false }).ToList()
+            };
+
+            categoria.Subtasks.Add(nuevaSubtask);
+        }
+
+        StateHasChanged();
+    }
 }

@@ -585,23 +585,7 @@
             }
         });
 
-        day.Blocks.Add(new Block
-        {
-            Title = "Tareas Operativas",
-            Color = "#B5EAD7",
-            SubTasks = new List<TaskItem>
-            {
-                new TaskItem
-                {
-                    Nombre = "Entregar reporte semanal",
-                    Descripcion = "Revisar los reportes de la semana.",
-                    FechaInicio = date,
-                    FechaFin = date,
-                    Prioridad = "Alta"
-                }
-            }
-        });
-
+    
         day.Blocks.Add(new Block
         {
             Title = "Órdenes de Trabajo",
@@ -657,7 +641,6 @@
     {
         "Órdenes de Trabajo" => "🧾",
         "Tareas Administrativas" => "🗂️",
-        "Tareas Operativas" => "⚙️",
         "Autoevaluación" => "⭐",
         "Servicio a Cliente" => "🏢",
         _ => "📋"

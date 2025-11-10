@@ -287,13 +287,7 @@
         adminBlock.SubTasks.Add(t1); adminBlock.SubTasks.Add(t2); adminBlock.SubTasks.Add(t3);
         day.Blocks.Add(adminBlock);
 
-        // Tareas Operativas
-        var opBlock = new Block { Title = "Tareas Operativas", Color = "#B5EAD7" };
-        var o1 = new GeneralTask { Name = "Entregar reporte semanal", Description = "Revisar bien los reportes de la semana", ParentBlock = opBlock, Type = BlockType.GeneralTask };
-        var o2 = new GeneralTask { Name = "Reunión equipo", Description = "Llevar el control de las reuniones hechas", ParentBlock = opBlock, Type = BlockType.GeneralTask };
-        var o3 = new GeneralTask { Name = "Entrega reporte semanal", Description = "Revisar que los reportes de mis compañeros los suban", ParentBlock = opBlock, Type = BlockType.GeneralTask };
-        opBlock.SubTasks.Add(o1); opBlock.SubTasks.Add(o2); opBlock.SubTasks.Add(o3);
-        day.Blocks.Add(opBlock);
+  
 
         // Órdenes de Trabajo
         var woBlock = new Block { Title = "Órdenes de Trabajo", Color = "#FFDAC1" };
