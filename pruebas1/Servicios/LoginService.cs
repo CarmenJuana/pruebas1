@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using pruebas1.Components.DTOs;
 using System;
 using System.Collections.Generic;
@@ -50,27 +51,55 @@ namespace pruebas1.Servicios
         }
 
         public async Task<UsuarioLoginDTO> login(LoginDTO loginDTO)
+
         {
+
             try
+
             {
+
                 var respuesta = await httpClient.PostAsJsonAsync<LoginDTO>("login", loginDTO);
-                if (respuesta.IsSuccessStatusCode)
+
+                if (!respuesta.IsSuccessStatusCode)
+
+                    return new UsuarioLoginDTO();
+
+                string dataString = await respuesta.Content.ReadAsStringAsync();
+
+                if (string.IsNullOrWhiteSpace(dataString))
+
+                    return new UsuarioLoginDTO();
+
+                // Intentamos leer la propiedad usuario
+
+                var jsonObject = JsonConvert.DeserializeObject<JObject>(dataString);
+
+                var usuarioJson = jsonObject?["usuario"];
+
+                if (usuarioJson != null)
+
                 {
-                    string dataString = await respuesta.Content.ReadAsStringAsync();
-                    if (dataString == "") return new UsuarioLoginDTO();
-                    var obj = JsonConvert.DeserializeObject<UsuarioLoginDTO>(dataString);
-                    return obj;
+
+                    return usuarioJson.ToObject<UsuarioLoginDTO>();
+
                 }
-                else
-                { return new UsuarioLoginDTO(); }
 
+                // Si no existe usuario, intentamos deserializar directo (por compatibilidad)
+
+                return JsonConvert.DeserializeObject<UsuarioLoginDTO>(dataString) ?? new UsuarioLoginDTO();
 
             }
-            catch (Exception ex)
+
+            catch
+
             {
+
                 return new UsuarioLoginDTO();
+
             }
+
         }
+
 
     }
 }

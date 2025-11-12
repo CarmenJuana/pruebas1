@@ -35,7 +35,7 @@
 
                     @if (day.Date.DayOfWeek == DayOfWeek.Sunday)
                     {
-                        <div class="no-laboral">No Laboral</div>
+                        <div class="no-laboral">No laborable</div>
                     }
                     else
                     {
@@ -108,7 +108,7 @@
                         }
                     }
                 }
-                else if (SelectedBlock.Title == "Tareas Administrativas" || SelectedBlock.Title == "Tareas Operativas")
+                else if (SelectedBlock.Title == "Tareas" || SelectedBlock.Title == "Tareas Operativas")
                 {
                     <ul class="collapsible-list">
                         @foreach (var task in SelectedBlock.SubTasks)
@@ -561,7 +561,7 @@
         // Bloques
         day.Blocks.Add(new Block
         {
-            Title = "Tareas Administrativas",
+            Title = "Tareas",
             Color = "#FFD1DC",
             SubTasks = new List<TaskItem>
             {
@@ -640,7 +640,7 @@
     string GetIcon(string title) => title switch
     {
         "Órdenes de Trabajo" => "🧾",
-        "Tareas Administrativas" => "🗂️",
+        "Tareas" => "🗂️",
         "Autoevaluación" => "⭐",
         "Servicio a Cliente" => "🏢",
         _ => "📋"
