@@ -138,12 +138,14 @@
     private async Task Ingresar()
     {
         Loading = true;
-
+           
         var usuariologin = await loginService.login(loginDTO);
         if (usuariologin.Idusuario == 0)
         {
             Loading = false;
-          
+System.Diagnostics.Debug.WriteLine($"Usuario ID: {usuariologin.Idusuario}");
+
+
         }
         else
         {

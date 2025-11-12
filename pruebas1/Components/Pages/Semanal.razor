@@ -278,7 +278,7 @@
         if (date.DayOfWeek == DayOfWeek.Sunday) return day;
 
         // Tareas Administrativas
-        var adminBlock = new Block { Title = "Tareas Administrativas", Color = "#FFD1DC" };
+        var adminBlock = new Block { Title = "Tareas", Color = "#FFD1DC" };
         var t1 = new AdminTask { Name = "Área de TI limpia", Description = "Me aseguré de que el área y la estación de insumos de TI esté limpia, ordenada y funcional", ParentBlock = adminBlock, Type = BlockType.AdminTask };
         t1.SubTasks.Add(new BaseTask { Name = "Subtarea 1" });
         t1.SubTasks.Add(new BaseTask { Name = "Subtarea 2" });
