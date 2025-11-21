@@ -24,14 +24,18 @@ namespace pruebas1
 
             builder.Services.AddScoped<ReglasRecurrenciaServices>();
             builder.Services.AddScoped<LoginService>();
+            builder.Services.AddScoped<SalasEmService>();
+            builder.Services.AddScoped<AgendaService>();
+
+
             builder.Services.AddMauiBlazorWebView();
 
             builder.Services.AddScoped(sp =>
             {
                 var http = new HttpClient
                 {
-                    //BaseAddress = new Uri("https://redgm.site:9096/")
-                    BaseAddress = new Uri("http://localhost:5231/")
+                    BaseAddress = new Uri("https://redgm.site:9096/")
+                    //BaseAddress = new Uri("http://localhost:5231/")
                 };
 
                 var token = Preferences.Get("token", "");

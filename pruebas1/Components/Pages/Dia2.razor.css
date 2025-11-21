@@ -29,6 +29,7 @@
 /*AQUI TERMINA*/
 
 /*MODAL DE MDOFICAR FECHA*/
+/*MODAL DE MDOFICAR FECHA*/
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -78,6 +79,7 @@
     padding: 8px 10px;
     border: 1px solid #ccc;
     border-radius: 6px;
+    border: 1px solid #000;
     font-size: 0.95rem;
 }
 
@@ -173,7 +175,6 @@
     background: #fff;
 }
 
-
 /*fin de los esilos de modificar fecha*/
 .modal-backdrop {
     position: fixed;
@@ -192,10 +193,12 @@
     padding: 20px;
     width: 420px;
     border-radius: 8px;
+
 }
 
 .form-group {
     margin-bottom: 12px;
+   
 }
 
 .modal-buttons {
@@ -807,7 +810,7 @@
 /* 🔹 Cada bloque individual (card de categoría) */
 .block-card {
     width: 100%;
-    min-height: 250px;
+    
     border-radius: 14px;
     background-color: #fff;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);

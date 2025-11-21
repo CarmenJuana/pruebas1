@@ -43,8 +43,12 @@
     }
 </div>
 
+
+
 <div class="save-container">
-    <button class="btn-save" @onclick="Guardar" disabled="@IsLocked">Guarda Autoevaluación</button>
+<button class="btn-save" @onclick="ConfirmarGuardar" disabled="@IsLocked">
+    Guarda Autoevaluación
+</button>
 </div>
 
 <!-- Modal para seleccionar día/fecha -->
@@ -265,20 +269,32 @@
     {
         if (IsLocked) return;
 
+        // ✔ SI DESMARCA → LIMPIAR TODO
+        if (!value)
+        {
+            tarea.Realizado = false;
+            tarea.RegistradoProgramado = "";
+            SelectedWeekIndex = -1;
+            SelectedDate = DateTime.Today;
+            CurrentTask = null;
+            ShowModal = false;
+            return;
+        }
+
+        // ✔ SI MARCA → ABRIR EL MODAL SEGÚN PERIODICIDAD
         CurrentTask = tarea;
+        tarea.Realizado = true;
 
         if (tarea.Periodicidad == "Semanal")
         {
             IsWeekly = true; IsMonthly = false; IsAnnual = false;
             ModalTitle = tarea.Nombre;
 
-            // Si ya tiene valor, selecciona el día correcto
+            // Si ya tiene un día programado, cargarlo
             SelectedWeekIndex = Array.IndexOf(WeekDays, tarea.RegistradoProgramado);
 
-            // Si no tenía nada registrado, NO seleccionamos ninguno aún
             if (SelectedWeekIndex < 0)
                 SelectedWeekIndex = -1;
-
 
             ShowModal = true;
         }
@@ -298,7 +314,7 @@
         }
         else
         {
-            tarea.Realizado = value;
+            // Diario → marcar directo
             tarea.RegistradoProgramado = "Registrado";
         }
     }
@@ -346,36 +362,50 @@
 
     private string GetTextDecoration(Tarea tarea)
         => (tarea.Realizado && !string.IsNullOrEmpty(tarea.RegistradoProgramado)) ? "subrayado" : "";
-
     private void ConfirmarGuardar()
     {
-        var incomplete = Bloques
+        // Tareas incompletas (marcadas como realizadas pero sin programación)
+        var incompletas = Bloques
             .SelectMany(b => b.Tareas)
-            .Where(t => t.Realizado && string.IsNullOrEmpty(t.RegistradoProgramado))
+            .Where(t =>
+                t.Realizado && string.IsNullOrWhiteSpace(t.RegistradoProgramado))
             .ToList();
 
-        if (incomplete.Any())
+        if (incompletas.Any())
         {
-            ShowAlert("Faltan datos", "No puede guardar hasta que programe todas las actividades marcadas.");
+            ShowAlert("Faltan actividades",
+                "No puede guardar la autoevaluación. Debe programar todas las actividades marcadas antes de guardar.");
             return;
         }
 
-        // RESETEAR flags por seguridad
-        IsWeekly = false;
-        IsMonthly = false;
-        IsAnnual = false;
+        // Tareas que NO fueron realizadas (checkbox sin marcar)
+        var sinRealizar = Bloques
+            .SelectMany(b => b.Tareas)
+            .Where(t => !t.Realizado)
+            .ToList();
 
+        if (sinRealizar.Any())
+        {
+            ShowAlert("Actividades sin marcar",
+                "Debe marcar y programar TODAS las actividades antes de guardar.");
+            return;
+        }
+
+        // Si todo está completo → Mostrar confirmación final
         ShowConfirm = true;
     }
 
-
     private void GuardarAutoevaluacionFinal()
     {
-        IsLocked = true;   // 🔒 BLOQUEA TODO
+        // 🔒 BLOQUEA TODO
+        IsLocked = true;
         ShowConfirm = false;
 
-        ShowAlert("Éxito", "Autoevaluación guardada correctamente. Ya no podrá editar hasta fin de mes.");
+        // Alerta final
+        ShowAlert("Guardado exitoso",
+            "Autoevaluación guardada correctamente. Ya no podrá editar hasta fin de mes.");
     }
+
 
 }
 
@@ -407,21 +437,21 @@
     .confirm-modal,
     .alert-modal {
         background: #fff;
-        padding: 1.8rem 1.5rem;
-        border-radius: 16px;
+        padding: 2.5rem 2rem;
+        border-radius: 20px;
         width: 90%;
-        max-width: 380px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        max-width: 520px; /* MÁS GRANDE */
+        box-shadow: 0 10px 35px rgba(0,0,0,0.35);
         animation: pop 0.25s ease-out;
         text-align: center;
     }
 
     .confirm-title,
     .alert-title {
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: #333;
-        margin-bottom: .8rem;
+        font-size: 2rem; /* ANTES 1.5rem */
+        font-weight: 800;
+        color: #000;
+        margin-bottom: 1.2rem;
     }
 
     .confirm-message,

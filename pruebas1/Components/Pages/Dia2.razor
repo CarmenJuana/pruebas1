@@ -1,4 +1,4 @@
-﻿@page "/"
+﻿@page "/dia2"
 @using System.Linq
 @using System.Globalization
 @inject NavigationManager navigate
@@ -52,7 +52,11 @@
         </div>
         
     </div>
-    <div class="modal-button-container"> <ReusableModal OnSave="AgregarTarea" /> </div>
+
+   
+    <div class="modal-button-container">
+        <ReusableModal OnSave="AgregarNuevaTarea" />
+    </div>
     <br />
 
     @if (FechaSeleccionada.DayOfWeek == DayOfWeek.Sunday)
@@ -135,7 +139,7 @@
                                                     <li class="subtask-item">
                                                         <div class="subtask-label @(s2.IsDone ? "done" : "")">
                                                             <input type="checkbox" checked="@s2.IsDone" @onchange="(e) => ToggleInnerSubtask(tareasCat, st, s2)" />
-                                                            <span class="subtask-text">@($"Objetivo de {s2.Title}")</span>
+                                                            <span class="subtask-text">@($"{s2.Title}")</span>
                                                             <div class="subtask-actions">
                                                                 
                                                                 <button class="icon-btn edit" title="Editar" @onclick="() => OpenEditInnerModal(tareasCat, st, s2)">
@@ -416,8 +420,7 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label>📅 Fecha actual</label>
-                    <DatePicker @bind-Value="NuevaFecha"
-                                CssClass="date-control" />
+                    <input type="text" class="form-control" value="@FechaActual.ToString("dd/MM/yyyy")" readonly />
                 </div>
 
                 <div class="form-group">
@@ -438,6 +441,7 @@
                 {
                     <div class="historial">
                         <h4>📜 Historial de cambios</h4>
+                        <div class="historial-scroll">
                         <table class="table table-sm">
                             <thead>
                                 <tr>
@@ -460,8 +464,10 @@
                             </tbody>
                         </table>
                     </div>
+                    </div>
                 }
             </div>
+   
 
             <div class="modal-footer">
                 <button class="btn-guardar" @onclick="GuardarCambioFecha">
@@ -555,15 +561,7 @@
     </div>
 }
 
-            <div class="modal-footer">
-                <button class="btn-guardar" @onclick="GuardarCambioFecha">
-                    <i class="bi bi-save"></i> Guardar
-                </button>
-                <button class="btn-cancelar" @onclick="CerrarModificarModal">
-                    <i class="bi bi-x-circle"></i> Cancelar
-                </button>
-            </div>
-}
+
 
 @code {
     // ---- FECHAS Y CALENDARIO ----
@@ -573,7 +571,7 @@
     private string[] DiasSemana = { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" };
     private IEnumerable<DateTime> DiasDelCalendario { get; set; } = Enumerable.Empty<DateTime>();
     private string FechaFormateada => FechaSeleccionada.ToString("dddd, dd MMMM yyyy", new CultureInfo("es-ES"));
-  
+
     // ---- MODELOS PARA EL BLOQUE DE ÓRDENES (D1) ----
     public class TareaOrdenModel
     {
@@ -597,13 +595,46 @@
     }
 
     //inicia DEL MODAL fechasmotivo
-    
+
     private bool ShowModificarFechaModal = false;
     private DateTime FechaActual { get; set; } = DateTime.Now;
     private DateTime? NuevaFecha { get; set; } = DateTime.Now;
     private string Motivo { get; set; } = string.Empty;
 
     private List<HistorialFechaCambio> HistorialCambios { get; set; } = new();
+    private List<TareaCreada> tareasAdministrativas = new();
+
+
+    private void AgregarNuevaTarea(TareaCreada tarea)
+    {
+        var catTareas = Categories.FirstOrDefault(c => c.Name.Trim() == "Tareas");
+        if (catTareas == null)
+            return;
+
+        // Crear la sub-tarea principal (actividad)
+        var nueva = new SubtaskModel
+        {
+            Title = tarea.Titulo,
+            Descripcion = tarea.Descripcion,
+            Tipo = tarea.IsEvento ? "Evento" : "Tarea",
+
+            FechaInicio = tarea.FechaInicio,
+            FechaFin = tarea.FechaFin,
+            HoraInicio = tarea.HoraInicio,
+            HoraFin = tarea.HoraFin,
+            Ubicacion = tarea.Ubicacion,
+            Participantes = tarea.Participantes,
+
+            Subtasks = tarea.Subtareas.Select(s => new SubtaskModel
+            {
+                Title = s,
+                IsDone = false
+            }).ToList()
+        };
+
+        catTareas.Subtasks.Add(nueva);
+        StateHasChanged();
+    }
 
     // alertas
     private bool MostrarAlerta = false;
@@ -648,7 +679,7 @@
         TipoAlerta = "exito";
         MensajeAlerta = "¡Fecha modificada correctamente!";
 
-  
+
         StateHasChanged();
     }
 
@@ -685,34 +716,36 @@
     }
 
     // ---- MODELOS QUE YA TENÍAS (mantengo para compatibilidad) ----
-    class SubtaskModel
+   /* class SubtaskModel
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
-        public string Title { get; set; }
-        public bool IsDone { get; set; }
-        public string Estado { get; set; } = "";   // <-- NUEVA PROPIEDAD
-        public string Tipo { get; set; }  // 👈 "Evento" o "Tarea"
-        public List<SubtaskModel> Subtasks { get; set; } = new();
+    public string Title { get; set; }
+    public string Descripcion { get; set; }
+
+    public bool IsDone { get; set; }
+    public string Estado { get; set; } = "";   // <-- NUEVA PROPIEDAD
+    public string Tipo { get; set; }  // 👈 "Evento" o "Tarea"
+    public List<SubtaskModel> Subtasks { get; set; } = new();
 
 
-        // Campos opcionales (si se usaran)
-        public DateTime FechaConclusion { get; set; } = DateTime.Now.Date;
-        public DateTime? FechaSolicitud { get; set; } = null;
-        public string Autor { get; set; } = null;
-        public string Cliente { get; set; } = null;
-        public string Objetivo { get; set; } = null;
-        public string ObjetivosOtros { get; set; } = null;
-        public string Description { get; set; } = null;
-        public int ProgressPercent { get; set; } = 0;
-    }
+    // Campos opcionales (si se usaran)
+    public DateTime FechaConclusion { get; set; } = DateTime.Now.Date;
+    public DateTime? FechaSolicitud { get; set; } = null;
+    public string Autor { get; set; } = null;
+    public string Cliente { get; set; } = null;
+    public string Objetivo { get; set; } = null;
+    public string ObjetivosOtros { get; set; } = null;
+    public string Description { get; set; } = null;
+    public int ProgressPercent { get; set; } = 0;
+    }*/
 
     class CategoryModel
     {
-        public string Name { get; set; }
-        public List<SubtaskModel> Subtasks { get; set; } = new();
-        public string ColorClass { get; set; } = "pastel-blue";
-        public bool IsCollapsed { get; set; } = false;
-        public string Icon { get; set; }
+    public string Name { get; set; }
+    public List<SubtaskModel> Subtasks { get; set; } = new();
+    public string ColorClass { get; set; } = "pastel-blue";
+    public bool IsCollapsed { get; set; } = false;
+    public string Icon { get; set; }
     }
 
     // ---- DATOS / INICIALIZACIÓN ----
@@ -721,6 +754,30 @@
 
     // Lista de órdenes (separada y limpia)
     private List<OrdenTrabajoModel> OrdenesParaMostrar = new();
+
+    /*private void AgregarTarea(ReusableModal.TareaCreada nueva)
+    {
+        var categoria = Categories.FirstOrDefault(c => c.Name.Trim() == "Tareas");
+
+        if (categoria != null)
+        {
+            var nuevaSubtask = new SubtaskModel
+            {
+                Title = nueva.Titulo,
+                IsDone = false,
+                // 👇 Guardamos si es evento o tarea
+                Tipo = nueva.IsEvento ? "Evento" : "Tarea",
+                Subtasks = nueva.Subtareas
+                    .Select(s => new SubtaskModel { Title = s, IsDone = false })
+                    .ToList()
+            };
+
+            categoria.Subtasks.Add(nuevaSubtask);
+        }
+
+        StateHasChanged();
+    }*/
+
 
     protected override void OnInitialized()
     {
@@ -1001,27 +1058,4 @@
     {
         // guardar cambios (si implementas edición)
     }
-
-    private void AgregarTarea(ReusableModal.TareaCreada nueva)
-    {
-        var categoria = Categories.FirstOrDefault(c => c.Name.Trim() == "Tareas");
-
-        if (categoria != null)
-        {
-            var nuevaSubtask = new SubtaskModel
-            {
-                Title = nueva.Titulo,
-                IsDone = false,
-                // 👇 Guardamos si es evento o tarea
-                Tipo = nueva.IsEvento ? "Evento" : "Tarea",
-                Subtasks = nueva.Subtareas
-                    .Select(s => new SubtaskModel { Title = s, IsDone = false })
-                    .ToList()
-            };
-
-            categoria.Subtasks.Add(nuevaSubtask);
-        }
-
-        StateHasChanged();
-    }
-}
+   }

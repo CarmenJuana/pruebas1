@@ -1,17 +1,18 @@
 ﻿@page "/modal-optimizado"
 @using Microsoft.AspNetCore.Components.Web
-@using System.Globalization;
+@using System.Globalization
 @using Microsoft.JSInterop
+@inject AgendaService AgendaService
+@inject SalasEmService SalasEmService
 @inject ReglasRecurrenciaServices RecurreciaServices
+@inject IJSRuntime JSRuntime
+
 @using pruebas1.Entidades
 @using pruebas1.Servicios
 @using pruebas1.Components
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-@inject IJSRuntime JSRuntime
-
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<script src="/js/alerts.js"></script>
 
 <div class="action-button-wrapper">
     <button class="action-button-floating" @onclick="@OpenModal">➕ Crear Nueva Actividad</button>
@@ -29,11 +30,13 @@
 
             <div class="task-modal-body">
 
+                <!-- Tipo -->
                 <div class="activity-type-selector">
                     <button @onclick="() => SetFormType(FormTypes.Tareas)"
                             class="@(FormType == FormTypes.Tareas ? "type-btn active-type-btn" : "type-btn")">
                         ✅ Tarea
                     </button>
+
                     <button @onclick="() => SetFormType(FormTypes.Evento)"
                             class="@(FormType == FormTypes.Evento ? "type-btn active-type-btn" : "type-btn")">
                         🗓️ Evento - Reunión
@@ -42,11 +45,13 @@
 
                 <div class="main-form-grid">
 
+                    <!-- Título -->
                     <div class="form-control-group col-span-2">
-                        <label for="title-input">Título / Nombre *</label>
-                        <input id="title-input" type="text" class="form-input" placeholder="Ej: Reporte Mensual de Ventas" @bind="titulo" />
+                        <label>Título / Nombre *</label>
+                        <InputText class="form-control" @bind-Value="titulo" />
                     </div>
 
+                    <!-- Prioridad -->
                     <div class="form-control-group">
                         <label>Prioridad</label>
                         <select class="form-input" @bind="selectedPrioridadId">
@@ -64,6 +69,7 @@
                         </select>
                     </div>
 
+                    <!-- Recurrencia -->
                     <div class="form-control-group">
                         <label>Recurrencia</label>
                         <select class="form-input" @bind="selectedFrecuenciaId">
@@ -81,72 +87,93 @@
                         </select>
                     </div>
 
+                    <!-- Fecha inicio -->
                     <div class="date-time-group">
                         <div class="form-control-group">
                             <label>🗓️ Fecha Inicio</label>
-                            <DatePicker @bind-Value="NuevaFecha"
-                                        CssClass="form-control" />
+                            <DatePicker @bind-Value="FechaInicio" CssClass="form-control" />
                         </div>
                     </div>
 
-                        <div class="form-control-group">
-                            <label>Hora Inicio</label>
-                            @* Se mantiene InputDate para la hora, pero se recomienda usar InputTime si Blazor lo soporta bien o input type="time" *@
-                            <input type="time" class="form-input time-control" />
-                        </div>
+                    <!-- Hora inicio -->
+                    <div class="form-control-group">
+                        <label>Hora Inicio</label>
+                        <input type="time" class="form-input time-control"
+                               @bind="HoraInicio" @bind:event="oninput" />
+                    </div>
 
+                    <!-- Fecha fin -->
                     <div class="date-time-group">
                         <div class="form-control-group">
-                            <label>Fecha Termino</label>
-                                <DatePicker @bind-Value="NuevaFecha"
-                                            CssClass="form-control" />
+                            <label>Fecha Término</label>
+                            <DatePicker @bind-Value="FechaFin" CssClass="form-control" />
                         </div>
                     </div>
 
-                        <div class="form-control-group">
-                            <label>Hora Término</label>
-                            <input type="time" class="form-input time-control" />
-                        </div>
+                    <!-- Hora fin -->
+                    <div class="form-control-group">
+                        <label>Hora Término</label>
+                        <input type="time" class="form-input time-control"
+                               @bind="HoraFin" @bind:event="oninput" />
                     </div>
 
+                    <!-- Ubicación -->
                     <div class="form-control-group col-span-2 @(FormType != FormTypes.Evento ? "disabled-field-if-tarea" : "")">
                         <label>Ubicación</label>
-                        <select class="form-input" @onchange="HandleLocationChange" disabled="@(FormType != FormTypes.Evento)">
+
+                        <select class="form-input"
+                                @onchange="HandleLocationChange"
+                                disabled="@(FormType != FormTypes.Evento)">
                             <option value="">Seleccione una opción</option>
-                            <option>Grupo Industrial</option>
-                            <option>Textil Gitsa</option>
-                            <option>Duramil</option>
-                            <option>Comedor GM</option>
-                            <option>Deverona</option>
-                            <option>El Reloj</option>
-                            <option>Meeting</option>
-                            <option>Virtual 1</option>
-                            <option>Virtual 2</option>
+
+                            @foreach (var sala in listaSalas)
+                            {
+                                <option value="@sala.Salas">@sala.Salas</option>
+                            }
+
                             <option value="otra">Otra...</option>
                         </select>
 
                         @if (showOtherLocationInput && FormType == FormTypes.Evento)
                         {
-                            <input type="text" class="form-input mt-2" placeholder="Ingrese otra ubicación específica" />
+                            <input type="text"
+                                   class="form-input mt-2"
+                                   placeholder="Ingrese otra ubicación específica"
+                                   @bind="ubicacionSeleccionada" />
                         }
                     </div>
 
+                    <!-- Participantes -->
                     <div class="form-control-group col-span-2 @(FormType != FormTypes.Evento ? "disabled-field-if-tarea" : "")">
                         <label>Participantes</label>
-                        <input type="text" class="form-input" placeholder="Nombre o correo de asistentes..." disabled="@(FormType != FormTypes.Evento)" />
+                        <input type="text" class="form-input"
+                               placeholder="Nombre o correo de asistentes..."
+                               @bind="participantes"
+                               disabled="@(FormType != FormTypes.Evento)" />
                     </div>
 
+                    <!-- Descripción -->
                     <div class="form-control-group col-span-2">
                         <label>Descripción / Detalles</label>
-                        <textarea class="form-input large-textarea" placeholder="Escriba los detalles, agenda o notas importantes aquí..." @bind="descripcion"></textarea>
+                        <InputTextArea class="form-control" @bind-Value="descripcion" />
                     </div>
 
+                    <!-- Subtareas -->
                     <div class="form-control-group col-span-2 @(FormType == FormTypes.Evento ? "disabled-field" : "")">
-                        <label>✅ Checklist / Sub Tareas</label>
+                        <label>Checklist / Sub Tareas</label>
+
                         <div class="input-with-button-group">
-                            <input @bind="newSubtask" @onkeydown="AddSubtaskOnEnter" class="form-input" placeholder="Añadir paso a la checklist" disabled="@(FormType == FormTypes.Evento)" />
-                            <button class="btn btn-add" @onclick="AddSubtask" disabled="@(FormType == FormTypes.Evento)">Añadir</button>
+                            <input @bind="newSubtask" @onkeydown="AddSubtaskOnEnter"
+                                   class="form-input" placeholder="Añadir paso a la checklist"
+                                   disabled="@(FormType == FormTypes.Evento)" />
+
+                            <button class="btn btn-add"
+                                    @onclick="AddSubtask"
+                                    disabled="@(FormType == FormTypes.Evento)">
+                                Añadir
+                            </button>
                         </div>
+
                         <div class="checklist-list-wrapper">
                             <ul class="checklist-list">
                                 @foreach (var task in subtasks)
@@ -159,51 +186,66 @@
                             </ul>
                         </div>
                     </div>
+
                 </div>
+
+                <!-- Footer -->
+                <div class="task-modal-footer">
+                    <button class="btn btn-secondary-action" @onclick="CheckClose">Cancelar</button>
+                    <button class="btn btn-primary-action" @onclick="Guardar">Guardar Actividad</button>
+                </div>
+
             </div>
 
-            <div class="task-modal-footer">
-                <button class="btn btn-secondary-action" @onclick="CheckClose">Cancelar</button>
-                <button class="btn btn-primary-action" @onclick="CheckSave">Guardar Actividad</button>
-            </div>
         </div>
-}
+    </div>
 
 @code {
 
+    // --- PARAMETROS ---
+    [Parameter] public EventCallback<TareaCreada> OnSave { get; set; }
+
+    // --- FECHAS ---
+    private DateTime? FechaInicio { get; set; }
+    private DateTime? FechaFin { get; set; }
+
+    // --- HORAS (TimeOnly) ---
+    private TimeOnly? HoraInicio { get; set; }
+    private TimeOnly? HoraFin { get; set; }
+
+    // --- CAMPOS ---
+    private string titulo = string.Empty;
+    private string descripcion = string.Empty;
+    private string participantes = string.Empty;
+
+    private List<string> subtasks = new();
+    private string newSubtask = string.Empty;
+
+    private List<SalasEm> listaSalas = new();
+    private string? ubicacionSeleccionada;
+    private bool showOtherLocationInput = false;
+
     private List<FrecuenciaRecurrencia> frecuencias = new();
     private List<Prioridad> prioridadesDisponibles = new();
-    private List<PlantillaReglaRecurrencia> plantillas = new();
     private int? selectedPrioridadId;
     private int? selectedFrecuenciaId;
-    public DateTime? NuevaFecha { get; set; }
-    private DateTime fechaInicio = DateTime.Today;
-    private DateTime fechaTermino = DateTime.Today;
 
-    private readonly CultureInfo EsMxCulture = new("es-MX");
-    private bool ShowModal { get; set; } = false;
-    private DateTime FechaSeleccionada { get; set; } = DateTime.Now;
+    private bool ShowModal = false;
 
-    protected override void OnInitialized()
-    {
-        var cultura = new System.Globalization.CultureInfo("es-MX");
-        System.Globalization.CultureInfo.CurrentCulture = cultura;
-        System.Globalization.CultureInfo.CurrentUICulture = cultura;
-
-    }
-    // Solo dos tipos ahora: Evento y Administrativa
     public enum FormTypes { Evento, Tareas }
     public FormTypes FormType { get; set; } = FormTypes.Tareas;
 
-    private string newSubtask = string.Empty;
-    private List<string> subtasks = new();
-    public bool showOtherLocationInput { get; set; } = false;
+    // ---------------------------
+    protected override async Task OnInitializedAsync()
+    {
+        var cultura = new CultureInfo("es-MX");
+        CultureInfo.CurrentCulture = cultura;
+        CultureInfo.CurrentUICulture = cultura;
 
-    private string titulo = string.Empty;
-    private string descripcion = string.Empty;
-
-    // Evento para notificar al padre
-    [Parameter] public EventCallback<TareaCreada> OnSave { get; set; }
+        listaSalas = await SalasEmService.GetSalas();
+        prioridadesDisponibles = await RecurreciaServices.GetPrioridad();
+        frecuencias = await RecurreciaServices.GetFrecuencia();
+    }
 
     private void OpenModal()
     {
@@ -217,86 +259,104 @@
         ShowModal = false;
     }
 
-
-    private string fechaInicioTexto
+    // ---------------------------
+    private void HandleLocationChange(ChangeEventArgs e)
     {
-        get => fechaInicio.ToString("dd/MM/yyyy");
-        set
-        {
-            if (DateTime.TryParseExact(value, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out var dt))
-                fechaInicio = dt;
-        }
+        ubicacionSeleccionada = e.Value?.ToString();
+        showOtherLocationInput = ubicacionSeleccionada == "otra";
     }
 
-    private string fechaTerminoTexto
+    // --------------crear iicio-------------
+    private async Task Guardar()
     {
-        get => fechaTermino.ToString("dd/MM/yyyy");
-        set
-        {
-            if (DateTime.TryParseExact(value, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out var dt))
-                fechaTermino = dt;
-        }
-    }
-    private async Task CheckSave()
-    {
+        // Validación básica
         if (string.IsNullOrWhiteSpace(titulo))
         {
             await JSRuntime.InvokeVoidAsync("Swal.fire", new
             {
-                icon = "warning",
+                icon = "error",
                 title = "Falta el título",
-                text = "Por favor escribe un título o nombre antes de guardar."
+                text = "Debes escribir un título."
             });
             return;
         }
 
-        // Si es Evento, lo guardamos dentro de Tareas Administrativas
-        var tipoParaPadre = "Administrativa"; // siempre "Administrativa" para que el padre lo ponga en esa categoría
+        // Crear modelo interno
         var nuevaTarea = new TareaCreada
         {
-            Tipo = tipoParaPadre,
+            Tipo = FormType == FormTypes.Evento ? "Evento" : "Tarea",
             Titulo = titulo,
             Descripcion = descripcion,
-            Subtareas = FormType == FormTypes.Evento ? new List<string>() : subtasks.ToList(),
+            FechaInicio = FechaInicio,
+            FechaFin = FechaFin,
+            Ubicacion = ubicacionSeleccionada,
+            Participantes = participantes,
+            Subtareas = subtasks.ToList(),
             IsEvento = FormType == FormTypes.Evento
         };
+
+        bool ok = false;
+
+        if (FormType == FormTypes.Evento)
+            ok = await AgendaService.CrearEventoApi(nuevaTarea);
+        else
+            ok = await AgendaService.CrearTareaApi(nuevaTarea);
+
+        if (!ok)
+        {
+            await JSRuntime.InvokeVoidAsync("Swal.fire", new
+            {
+                icon = "error",
+                title = "Error al guardar",
+                text = "La API rechazó la actividad."
+            });
+            return;
+        }
 
         await OnSave.InvokeAsync(nuevaTarea);
 
         await JSRuntime.InvokeVoidAsync("Swal.fire", new
         {
             icon = "success",
-            title = $"{(FormType == FormTypes.Evento ? "Evento" : "Tarea administrativa")} creada exitosamente 🎉",
+            title = "Guardado con éxito 🎉",
             showConfirmButton = false,
-            timer = 1800
+            timer = 1500
         });
 
         LimpiarCampos();
         ShowModal = false;
     }
+    // -----------termino----------------
 
+    // ---------------------------
     private void LimpiarCampos()
     {
-        titulo = string.Empty;
-        descripcion = string.Empty;
-        newSubtask = string.Empty;
+        titulo = "";
+        descripcion = "";
+        participantes = "";
         subtasks.Clear();
+        newSubtask = "";
+
+        FechaInicio = null;
+        FechaFin = null;
+        HoraInicio = null;
+        HoraFin = null;
+
+        ubicacionSeleccionada = null;
         showOtherLocationInput = false;
-        FormType = FormTypes.Tareas;
+
         selectedPrioridadId = null;
         selectedFrecuenciaId = null;
+
+        FormType = FormTypes.Tareas;
     }
 
     private void SetFormType(FormTypes type)
     {
         FormType = type;
-        showOtherLocationInput = false;
-        if (type == FormTypes.Evento) subtasks.Clear();
-        StateHasChanged();
+        if (type == FormTypes.Evento)
+            subtasks.Clear();
     }
-
-    private void HandleLocationChange(ChangeEventArgs e) =>
-        showOtherLocationInput = e.Value?.ToString() == "otra";
 
     private void AddSubtask()
     {
@@ -312,34 +372,17 @@
         if (e.Key == "Enter") AddSubtask();
     }
 
-    private void RemoveSubtask(string taskToRemove) => subtasks.Remove(taskToRemove);
-
-    // Modelo que enviará al padre
-    public class TareaCreada
+    private void RemoveSubtask(string taskToRemove)
     {
-        public string Tipo { get; set; } // siempre "Administrativa" (para que se guarde en esa categoría)
-        public string Titulo { get; set; }
-        public string Descripcion { get; set; }
-        public List<string> Subtareas { get; set; } = new();
-        public bool IsEvento { get; set; } = false; // para que el padre distinga si lo que llegó es un evento
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        prioridadesDisponibles = await RecurreciaServices.GetPrioridad();
-        frecuencias = await RecurreciaServices.GetFrecuencia();
-
-        Console.WriteLine($"Prioridades: {prioridadesDisponibles.Count}");
-        foreach (var p in prioridadesDisponibles) Console.WriteLine(p.Titulo);
-
-        Console.WriteLine($"Frecuencias: {frecuencias.Count}");
-        foreach (var f in frecuencias) Console.WriteLine(f.Nombre);
+        subtasks.Remove(taskToRemove);
     }
 }
+
+
+                            }
 <style>
     /* === Paleta de Colores Nueva (Azul y Amarillo/Naranja) === */
     :root {
-      
         --color-secondary: #C6E9F0; /* Amarillo/Dorado (Para Acentos y Activo) */
         --color-success: #28a745; /* Verde para éxito (Guardar) */
         --color-danger: #dc3545; /* Rojo para cancelar */
@@ -371,10 +414,9 @@
     }
 
         .action-button-floating:hover {
-       
             transform: translateY(-2px);
             box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
-            border-block-color:black;
+            border-block-color: black;
         }
 
     /* === Contenedor principal del Modal (Fondo Oscuro) === */
@@ -505,13 +547,12 @@
     }
 
     .date-time-group {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 15px;
-}
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
 
-    .btn btn-secondary-action{
-
+    .btn btn-secondary-action {
     }
     /* Responsive Grid */
     @@media (max-width: 1024px) {

@@ -11,26 +11,52 @@ namespace pruebas1.Entidades
         public string Tipo { get; set; } = "";
         public string Titulo { get; set; } = "";
         public string Descripcion { get; set; } = "";
-        public List<string> Subtareas { get; set; } = new();
 
-        // Campos extra para EVENTO (estático/local por ahora)
+        public List<string> Subtareas { get; set; } = new();
+        public bool IsEvento { get; set; } = false;
+
+        // 🔥 Fechas reales
         public DateTime? FechaInicio { get; set; }
         public DateTime? FechaFin { get; set; }
+
+        // 🔥 Horas reales
         public TimeOnly? HoraInicio { get; set; }
         public TimeOnly? HoraFin { get; set; }
-        public string Ubicacion { get; set; } = "";
-        public string Participantes { get; set; } = "";
+
+        // 🔥 Extras
+        public string? Ubicacion { get; set; }
+        public string? Participantes { get; set; }
+
     }
     public class SubtaskModel
     {
-        public string Title { get; set; }
+        // Identificador (opcional)
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+
+        // Campos que usa tu UI (español)
+        public string Title { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+        public bool IsDone { get; set; } = false;
+        public string Estado { get; set; } = string.Empty;   // autoevaluación
+        public string Tipo { get; set; } = string.Empty;     // "Evento" o "Tarea"
+        public List<SubtaskModel> Subtasks { get; set; } = new();
         public DateTime? FechaInicio { get; set; }
         public DateTime? FechaFin { get; set; }
         public TimeOnly? HoraInicio { get; set; }
         public TimeOnly? HoraFin { get; set; }
-        public string Ubicacion { get; set; }
-        public string Participantes { get; set; }
-        public List<SubtaskModel> Subtasks { get; set; }
+        // Campos de fechas y metadatos (opcionales)
+        public DateTime FechaConclusion { get; set; } = DateTime.Now.Date;
+        public DateTime? FechaSolicitud { get; set; } = null;
+        public string Ubicacion { get; set; } = string.Empty;
+        public string Participantes { get; set; } = string.Empty;
+        public string Autor { get; set; } = string.Empty;
+        public string Cliente { get; set; } = string.Empty;
+        public string Objetivo { get; set; } = string.Empty;
+        public string ObjetivosOtros { get; set; } = string.Empty;
+
+        // Campos en inglés que también usabas en otros lugares (compatibilidad)
+        public string Description { get => Descripcion; set => Descripcion = value; }
+        public int ProgressPercent { get; set; } = 0;
     }
     public class OrdenTrabajoModel
     {
