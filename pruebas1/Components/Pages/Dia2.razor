@@ -50,10 +50,10 @@
             </div>
 
         </div>
-        
+
     </div>
 
-   
+
     <div class="modal-button-container">
         <ReusableModal OnSave="AgregarNuevaTarea" />
     </div>
@@ -141,7 +141,7 @@
                                                             <input type="checkbox" checked="@s2.IsDone" @onchange="(e) => ToggleInnerSubtask(tareasCat, st, s2)" />
                                                             <span class="subtask-text">@($"{s2.Title}")</span>
                                                             <div class="subtask-actions">
-                                                                
+
                                                                 <button class="icon-btn edit" title="Editar" @onclick="() => OpenEditInnerModal(tareasCat, st, s2)">
                                                                     <i class="bi bi-pencil"></i>
                                                                 </button>
@@ -313,14 +313,14 @@
                                         }
 
                                         <span class="subtask-text">@st.Title</span>
-                                        
+
 
                                         @if (st.IsDone)
                                         {
                                             <small class="done-text">Hecho</small>
                                         }
-                                       
-                                        
+
+
                                         @if (cat.Name.Trim() == "Tareas")
                                         {
                                             <div class="subtask-actions">
@@ -442,32 +442,32 @@
                     <div class="historial">
                         <h4>📜 Historial de cambios</h4>
                         <div class="historial-scroll">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Fecha anterior</th>
-                                    <th>Nueva fecha</th>
-                                    <th>Motivo</th>
-                                    <th>Fecha de modificación</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var h in HistorialCambios.OrderByDescending(x => x.FechaModificacion))
-                                {
+                            <table class="table table-sm">
+                                <thead>
                                     <tr>
-                                        <td>@h.FechaAnterior.ToString("dd/MM/yyyy")</td>
-                                        <td>@h.FechaNueva.ToString("dd/MM/yyyy")</td>
-                                        <td>@h.Motivo</td>
-                                        <td>@h.FechaModificacion.ToString("dd/MM/yyyy HH:mm")</td>
+                                        <th>Fecha anterior</th>
+                                        <th>Nueva fecha</th>
+                                        <th>Motivo</th>
+                                        <th>Fecha de modificación</th>
                                     </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    @foreach (var h in HistorialCambios.OrderByDescending(x => x.FechaModificacion))
+                                    {
+                                        <tr>
+                                            <td>@h.FechaAnterior.ToString("dd/MM/yyyy")</td>
+                                            <td>@h.FechaNueva.ToString("dd/MM/yyyy")</td>
+                                            <td>@h.Motivo</td>
+                                            <td>@h.FechaModificacion.ToString("dd/MM/yyyy HH:mm")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 }
             </div>
-   
+
 
             <div class="modal-footer">
                 <button class="btn-guardar" @onclick="GuardarCambioFecha">
@@ -644,7 +644,7 @@
     private void OpenModificarModal(CategoryModel cat, SubtaskModel st)
     {
         FechaActual = st?.FechaConclusion != default ? st.FechaConclusion : DateTime.Now;
-        NuevaFecha = FechaActual ;
+        NuevaFecha = FechaActual;
         Motivo = string.Empty;
 
         // si la subtarea tiene historial
@@ -673,7 +673,7 @@
             FechaModificacion = DateTime.Now
         });
 
-        FechaActual = NuevaFecha ?? DateTime.Now;;
+        FechaActual = NuevaFecha ?? DateTime.Now; ;
 
         MostrarAlerta = true;
         TipoAlerta = "exito";
@@ -716,36 +716,36 @@
     }
 
     // ---- MODELOS QUE YA TENÍAS (mantengo para compatibilidad) ----
-   /* class SubtaskModel
-    {
-        public string Id { get; set; } = Guid.NewGuid().ToString();
-    public string Title { get; set; }
-    public string Descripcion { get; set; }
+    /* class SubtaskModel
+     {
+         public string Id { get; set; } = Guid.NewGuid().ToString();
+     public string Title { get; set; }
+     public string Descripcion { get; set; }
 
-    public bool IsDone { get; set; }
-    public string Estado { get; set; } = "";   // <-- NUEVA PROPIEDAD
-    public string Tipo { get; set; }  // 👈 "Evento" o "Tarea"
-    public List<SubtaskModel> Subtasks { get; set; } = new();
+     public bool IsDone { get; set; }
+     public string Estado { get; set; } = "";   // <-- NUEVA PROPIEDAD
+     public string Tipo { get; set; }  // 👈 "Evento" o "Tarea"
+     public List<SubtaskModel> Subtasks { get; set; } = new();
 
 
-    // Campos opcionales (si se usaran)
-    public DateTime FechaConclusion { get; set; } = DateTime.Now.Date;
-    public DateTime? FechaSolicitud { get; set; } = null;
-    public string Autor { get; set; } = null;
-    public string Cliente { get; set; } = null;
-    public string Objetivo { get; set; } = null;
-    public string ObjetivosOtros { get; set; } = null;
-    public string Description { get; set; } = null;
-    public int ProgressPercent { get; set; } = 0;
-    }*/
+     // Campos opcionales (si se usaran)
+     public DateTime FechaConclusion { get; set; } = DateTime.Now.Date;
+     public DateTime? FechaSolicitud { get; set; } = null;
+     public string Autor { get; set; } = null;
+     public string Cliente { get; set; } = null;
+     public string Objetivo { get; set; } = null;
+     public string ObjetivosOtros { get; set; } = null;
+     public string Description { get; set; } = null;
+     public int ProgressPercent { get; set; } = 0;
+     }*/
 
     class CategoryModel
     {
-    public string Name { get; set; }
-    public List<SubtaskModel> Subtasks { get; set; } = new();
-    public string ColorClass { get; set; } = "pastel-blue";
-    public bool IsCollapsed { get; set; } = false;
-    public string Icon { get; set; }
+        public string Name { get; set; }
+        public List<SubtaskModel> Subtasks { get; set; } = new();
+        public string ColorClass { get; set; } = "pastel-blue";
+        public bool IsCollapsed { get; set; } = false;
+        public string Icon { get; set; }
     }
 
     // ---- DATOS / INICIALIZACIÓN ----
@@ -1058,4 +1058,4 @@
     {
         // guardar cambios (si implementas edición)
     }
-   }
+}

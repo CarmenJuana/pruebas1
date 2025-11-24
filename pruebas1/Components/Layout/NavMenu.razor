@@ -36,7 +36,6 @@
                 <a class="nav-link user-nav dropdown-toggle"
                    href="#" id="userDropdown"
                    role="button" data-bs-toggle="dropdown" aria-expanded="false">
-
                     <i class="bi bi-person-circle icon-user"></i>@nombreusuario
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
@@ -51,11 +50,32 @@
 
 
 <style scoped>
+    /* ---- ELIMINAR DESBORDES ---- */
+    html, body {
+        overflow-x: hidden !important;
+        width: 100%;
+    }
+
+    * {
+        max-width: 100%;
+        box-sizing: border-box;
+    }
     /* 1. Contenedor Fijo/Sticky */
     .menu-container {
-        /* Mantiene todo fijo en la parte superior al hacer scroll */
-        background-color: white;
-        z-index: 1050;
+        position: sticky;
+        top: 0;
+        z-index: 2000;
+        background-color: #C6E9F0 !important; /* tu azul */
+        
+    }
+    /* ---- CONTROLAR EL DESBORDAMIENTO ---- */
+.container-fluid {
+    flex-wrap: wrap !important;
+}
+    /* ---- LOGO ---- */
+    .navbar-brand {
+        max-width: 250px;
+        height: auto;
     }
 
     .icon-user {
@@ -63,40 +83,15 @@
         color: black;
     }
 
-    /* 2. Navbar Principal */
-    .navbar-custom {
-        background-color: #7A93B2; /* Azul oscuro */
-    }
+  .navbar .dropdown .nav-link,
+.navbar .dropdown .user-nav {
+    color: black !important;
+}
 
-    .navbar .dropdown .nav-link,
     .navbar .dropdown .user-nav {
-        color: black !important;
+        color: black !important; /* aquí cambias el color */
     }
 
-
-    .nav-link {
-        color: #0000;
-        font-size: 1.2rem;
-        font-weight: 500;
-    }
-
-    .navbar-custom {
-        background-color: #C6E9F0;
-    }
-
-        .navbar-custom .nav-link,
-        .navbar-custom .navbar-brand {
-            color: black;
-        }
-
-            .navbar-custom .nav-link:hover,
-            .navbar-custom .dropdown-item:hover {
-                color: #000;
-            }
-
-    .dropdown-menu {
-        min-width: 150px;
-    }
 
     /* 3. Contenedor de la píldora del Submenú */
     .subnav-float {
@@ -144,7 +139,7 @@
         .subnav-btn:focus,
         .subnav-btn:active:focus {
             outline: none; /* Quita el contorno de enfoque por defecto si no lo quieres */
-            box-shadow: 0 0 0 0.25rem rgba(11, 60, 74, 0.25); /* Sombra de enfoque personalizada */
+           
         }
 
 
@@ -153,6 +148,46 @@
             background-color: #0B3C4A;
             color: black;
         }
+    @@media (max-width: 768px) {
+        .navbar-brand
+
+    {
+        max-width: 150px;
+    }
+
+    }
+
+    /* ---- SUBMENÚ RESPONSIVO ---- */
+    .navbar-nav {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .subnav-btn {
+        padding: 10px 15px;
+        font-size: 1rem;
+        font-weight: 600;
+        background: transparent;
+        border: none;
+        border-radius: 12px;
+        transition: 0.2s;
+        white-space: nowrap;
+        max-width: 100%;
+    }
+
+    /* MÓVILES */
+    @@media (max-width: 480px) {
+        .subnav-btn
+
+    {
+        padding: 8px 10px;
+        font-size: 0.85rem;
+    }
+
+    }
 </style>
 
 
@@ -160,7 +195,7 @@
 @code {
     private void dias()
     {
-        navigate.NavigateTo("/dia2");
+        navigate.NavigateTo("/");
     }
 
     private void semanas()
